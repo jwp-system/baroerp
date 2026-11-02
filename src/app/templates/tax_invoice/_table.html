@@ -1,0 +1,25 @@
+{% import "_macros.html" as m with context %}
+<p class="hint list-count">{{ page.total }}건</p>
+{% if page.rows %}
+<div class="table-wrap">
+  <table class="table table-link">
+    <thead><tr><th>구분</th><th>작성일자</th><th>승인번호</th><th>거래처</th><th class="r">공급가액</th><th class="r">세액</th><th>대사</th></tr></thead>
+    <tbody>
+      {% for (i,) in page.rows %}
+      <tr onclick="location.href='/tax-invoice/{{ i.id }}'">
+        <td><span class="badge {{ 'badge-blue' if i.direction == 'sales' else 'badge-yellow' }}">{{ i.direction_label }}</span></td>
+        <td class="num nowrap">{{ i.issue_date }}</td>
+        <td class="num nowrap"><a href="/tax-invoice/{{ i.id }}">{{ i.approval_no }}</a></td>
+        <td>{{ i.counterparty_name or '' }} <span class="sub num">{{ i.counterparty_biz_no_display }}</span></td>
+        <td class="r">{{ i.supply_amount | won }}</td>
+        <td class="r">{{ i.vat_amount | won }}</td>
+        <td class="nowrap">{% if i.matched_at %}<span class="badge badge-green">{{ i.vouchers | length }}건 대사</span>{% else %}<span class="badge badge-red">대사 안 됨</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ m.pager("/tax-invoice/list", f.params(), page, "#invoice-table") }}
+{% else %}
+<div class="list-empty"><p>이 기간에 세금계산서가 없어요</p>{% if can_edit %}<p class="hint"><a class="link" href="/tax-invoice/upload">홈택스 목록 올리기</a></p>{% endif %}</div>
+{% endif %}

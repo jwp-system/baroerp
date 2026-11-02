@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}거래처 상황판 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <h1 class="page-title">거래처 상황판</h1>
+  <p class="page-sub">이번 달 거래가 있거나 잔액이 남은 거래처예요. 거래처를 누르면 상황판을 볼 수 있어요</p>
+</header>
+<section class="card">
+  <form class="filters" hx-get="/partners" hx-target="#partner-board-table" hx-push-url="true"
+        hx-trigger="keyup changed delay:400ms from:input[name=q], submit">
+    <div class="field grow"><label for="q">검색</label><input class="input input-sm" id="q" name="q" value="{{ q }}" placeholder="거래처명 또는 사업자번호"></div>
+  </form>
+  <div id="partner-board-table">{% include "partners/_table.html" %}</div>
+</section>
+{% endblock %}

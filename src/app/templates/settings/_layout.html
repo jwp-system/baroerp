@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}설정 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <h1 class="page-title">설정</h1>
+</header>
+<nav class="tabs">
+  {% for key, label, href in [
+    ("business", "사업장", "/settings"),
+    ("users", "사용자", "/settings/users"),
+    ("permissions", "메뉴 권한", "/settings/permissions"),
+    ("audit", "감사 로그", "/settings/audit"),
+  ] + ([("backup", "백업·복원", "/settings/backup")] if user.role == 'owner' and not settings.is_saas else []) %}
+  <a href="{{ href }}" class="tab" {% if tab == key %}aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+{% block settings %}{% endblock %}
+{% endblock %}

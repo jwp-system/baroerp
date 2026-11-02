@@ -1,0 +1,28 @@
+{# 거래처의 배분 가능한 전표. 금액을 비워 두면 오래된 전표부터 자동 배분 #}
+{% if open %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>일자</th><th>전표번호</th><th class="r">전표 합계</th><th class="r">남은 금액</th><th class="r">이번 배분</th></tr></thead>
+    <tbody>
+      {% for v, rest in open %}
+      <tr>
+        <td class="num nowrap">{{ v.voucher_date }}</td>
+        <td class="num nowrap"><a class="link" href="/{{ 'sales' if kind == 'receipt' else 'purchase' }}/{{ v.id }}" target="_blank">{{ v.number }}</a></td>
+        <td class="r">{{ v.total_amount | won }}</td>
+        <td class="r"><strong>{{ rest | won }}</strong></td>
+        <td class="r">
+          <input type="hidden" name="alloc_voucher_id" value="{{ v.id }}">
+          <input class="input input-sm input-xs num" name="alloc_amount" inputmode="numeric" value="{{ alloc.get(v.id | string, alloc.get(v.id, '')) }}"
+                 placeholder="{{ rest | won }}" aria-label="{{ v.number }} 배분 금액" @input="sumAlloc()">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="hint">금액을 모두 비워 두면 오래된 전표부터 자동으로 배분해요. 남는 금액은 {{ '선수금' if kind == 'receipt' else '선급금' }}으로 남아요</p>
+{% elif partner_id %}
+<p class="hint">배분할 전표가 없어요. 등록하면 {{ '선수금' if kind == 'receipt' else '선급금' }}으로 남아요</p>
+{% else %}
+<p class="hint">거래처를 고르면 {{ '미수' if kind == 'receipt' else '미지급' }} 전표가 보여요</p>
+{% endif %}

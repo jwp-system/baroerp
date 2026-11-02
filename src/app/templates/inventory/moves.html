@@ -1,0 +1,28 @@
+{% extends "inventory/_layout.html" %}
+{% block inventory %}
+<section class="card">
+  <form class="filters" hx-get="/inventory/moves" hx-target="#move-table" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:400ms from:input[name=q], submit">
+    <div class="field"><label for="start">시작일</label><input class="input input-sm" type="date" id="start" name="start" value="{{ f.start }}"></div>
+    <div class="field"><label for="end">종료일</label><input class="input input-sm" type="date" id="end" name="end" value="{{ f.end }}"></div>
+    <div class="field grow"><label for="q">품목</label><input class="input input-sm" id="q" name="q" value="{{ f.q }}" placeholder="품목명 또는 식별코드"></div>
+    <div class="field">
+      <label for="warehouse">창고</label>
+      <select class="input input-sm" id="warehouse" name="warehouse">
+        <option value="">전체 창고</option>
+        {% for w in warehouses %}<option value="{{ w.id }}" {% if f.warehouse == w.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="kind">구분</label>
+      <select class="input input-sm" id="kind" name="kind">
+        <option value="">전체</option>
+        {% for value, label in kinds.items() %}<option value="{{ value }}" {% if f.kind == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="button" class="btn btn-weak btn-sm"
+            onclick="location.href='/inventory/moves/export.xlsx?' + new URLSearchParams(new FormData(this.form))">엑셀 내보내기</button>
+  </form>
+  <div id="move-table">{% include "inventory/_move_table.html" %}</div>
+</section>
+{% endblock %}

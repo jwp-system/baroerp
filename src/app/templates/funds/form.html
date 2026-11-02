@@ -1,0 +1,61 @@
+{% extends "funds/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block sub %}{% if kind == 'receipt' %}받은 돈을 매출 전표에 배분하면 미수금이 줄어요{% else %}보낸 돈을 매입 전표에 배분하면 미지급금이 줄어요{% endif %}{% endblock %}
+{% block head_actions %}{% endblock %}
+{% block funds %}
+{{ m.error_box(error) }}
+<form method="post" action="/funds" class="stack"
+      x-data="{ amount: '{{ form.amount or '' }}', allocSum: 0,
+                sumAlloc() { this.allocSum = [...this.$root.querySelectorAll('[name=alloc_amount]')].reduce((s, el) => s + (parseFloat(el.value.replace(/,/g, '')) || 0), 0) } }"
+      @htmx:after-swap="sumAlloc()" @keydown.enter="if ($event.target.tagName === 'INPUT') $event.preventDefault()">
+  {{ m.csrf() }}
+  <input type="hidden" name="kind" value="{{ kind }}">
+  <section class="card">
+    <h2 class="card-title">{{ label }} 등록</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="payment_date">{{ label }}일</label>
+        <input class="input num" type="date" id="payment_date" name="payment_date" value="{{ form.payment_date }}" required>
+      </div>
+      <div class="field">
+        <label for="partner_id">거래처</label>
+        <select class="input" id="partner_id" name="partner_id" required
+                hx-get="/funds/open-vouchers?kind={{ kind }}" hx-target="#open-vouchers" hx-trigger="change">
+          <option value="">거래처를 골라 주세요</option>
+          {% for p in partners %}<option value="{{ p.id }}" {% if form.partner_id | string == p.id | string %}selected{% endif %}>{{ p.name }}{% if p.biz_no %} · {{ p.biz_no_display }}{% endif %}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="amount">금액</label>
+        <div class="input-suffix"><input class="input num" id="amount" name="amount" inputmode="numeric" x-model="amount" required><span>원</span></div>
+        {% if needs_approval and not is_owner %}<p class="hint">{{ threshold | won }}원 이상이면 대표 승인 후 반영돼요</p>{% endif %}
+      </div>
+      <div class="field">
+        <label>수단</label>
+        <div class="segmented">
+          {% for value, l in methods.items() %}
+          <label><input type="radio" name="method" value="{{ value }}" {% if (form.method or 'transfer') == value %}checked{% endif %}><span>{{ l }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="account_ref">계좌·카드</label><input class="input" id="account_ref" name="account_ref" value="{{ form.account_ref or '' }}" placeholder="예: 기업은행 123-456"></div>
+      <div class="field"><label for="memo">메모</label><input class="input" id="memo" name="memo" value="{{ form.memo or '' }}"></div>
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-head">
+      <h2 class="card-title">전표 배분</h2>
+      <p class="hint" x-show="allocSum > 0">배분 합계 <strong class="num" x-text="allocSum.toLocaleString('ko-KR')"></strong>원</p>
+    </div>
+    <div id="open-vouchers">{% include "funds/_open_vouchers.html" %}</div>
+  </section>
+  <div class="actions">
+    <a href="/funds" class="btn btn-grey">취소</a>
+    <button class="btn">{{ label }} 등록하기</button>
+  </div>
+</form>
+{% endblock %}

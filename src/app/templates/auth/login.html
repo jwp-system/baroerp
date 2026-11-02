@@ -1,0 +1,20 @@
+{% extends "auth/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}로그인 · {{ settings.app_name }}{% endblock %}
+{% block auth %}
+<h1 class="auth-title">로그인</h1>
+<p class="auth-sub">입력하면 바로, 장부가 끝나요</p>
+{{ m.error_box(error) }}
+<form method="post" action="/login" class="stack">
+  {{ m.csrf() }}
+  <div class="field">
+    <label for="email">이메일</label>
+    <input class="input" id="email" name="email" type="email" value="{{ email }}" autocomplete="username" required autofocus>
+  </div>
+  <div class="field">
+    <label for="password">비밀번호</label>
+    <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+  </div>
+  <button class="btn btn-lg btn-block">로그인</button>
+</form>
+{% endblock %}

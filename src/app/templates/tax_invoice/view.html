@@ -1,0 +1,74 @@
+{% extends "tax_invoice/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ inv.approval_no }} · {{ settings.app_name }}{% endblock %}
+{% block sub %}{{ inv.direction_label }} 세금계산서 · {% if inv.matched_at %}{{ '자동' if inv.match_method == 'auto' else '직접' }} 대사 {{ inv.matched_at | dt }}{% else %}아직 전표와 대사되지 않았어요{% endif %}{% endblock %}
+{% block head_actions %}
+{% if inv.matched_at and can_edit %}
+<form method="post" action="/tax-invoice/{{ inv.id }}/unmatch" onsubmit="return confirm('대사를 풀까요?')">{{ m.csrf() }}<button class="btn btn-grey">대사 풀기</button></form>
+{% endif %}
+{% endblock %}
+{% block tax %}
+<div class="stack">
+  <section class="card">
+    <div class="list">
+      <div class="list-row"><div class="main"><p class="desc">승인번호</p><p class="title num">{{ inv.approval_no }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">작성일자</p><p class="title num">{{ inv.issue_date }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">{{ '공급받는자' if inv.direction == 'sales' else '공급자' }}</p><p class="title">{{ inv.counterparty_name or '' }} <span class="sub num">{{ inv.counterparty_biz_no_display }}</span></p></div></div>
+      {% if inv.item_name %}<div class="list-row"><div class="main"><p class="desc">품목</p><p class="title">{{ inv.item_name }}</p></div></div>{% endif %}
+    </div>
+    <div class="totals totals-inline">
+      <div class="total-row"><span>공급가액</span><span class="num">{{ inv.supply_amount | won }}원</span></div>
+      <div class="total-row"><span>세액</span><span class="num">{{ inv.vat_amount | won }}원</span></div>
+      <div class="total-row total-sum"><span>합계</span><span class="num">{{ inv.total_amount | won }}원</span></div>
+    </div>
+  </section>
+
+  {% if inv.matched_at %}
+  <section class="card">
+    <h2 class="card-title">대사된 전표 {{ inv.vouchers | length }}건</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>일자</th><th>전표번호</th><th class="r">공급가액</th><th class="r">부가세</th></tr></thead>
+        <tbody>
+          {% for v in inv.vouchers %}
+          <tr><td class="num">{{ v.voucher_date }}</td><td class="num"><a class="link" href="{{ voucher_prefix }}/{{ v.id }}">{{ v.number }}</a></td><td class="r">{{ v.supply_amount | won }}</td><td class="r">{{ v.vat_amount | won }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% elif can_edit %}
+  <section class="card">
+    <h2 class="card-title">전표 골라 대사하기</h2>
+    {% if candidates %}
+    <form method="post" action="/tax-invoice/{{ inv.id }}/match" class="stack"
+          x-data="{ supply: 0, vat: 0, recalc() { let s = 0, t = 0; this.$root.querySelectorAll('input[name=voucher_id]:checked').forEach(el => { s += +el.dataset.supply; t += +el.dataset.vat }); this.supply = s; this.vat = t } }">
+      {{ m.csrf() }}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th></th><th>일자</th><th>전표번호</th><th class="r">공급가액</th><th class="r">부가세</th></tr></thead>
+          <tbody>
+            {% for v in candidates %}
+            <tr>
+              <td><input type="checkbox" class="checkbox" name="voucher_id" value="{{ v.id }}" data-supply="{{ v.supply_amount | int }}" data-vat="{{ v.vat_amount | int }}" @change="recalc()" aria-label="{{ v.number }}"></td>
+              <td class="num">{{ v.voucher_date }}</td>
+              <td class="num"><a class="link" href="{{ voucher_prefix }}/{{ v.id }}" target="_blank">{{ v.number }}</a></td>
+              <td class="r">{{ v.supply_amount | won }}</td>
+              <td class="r">{{ v.vat_amount | won }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="hint">고른 전표 공급가액 <strong class="num" x-text="supply.toLocaleString('ko-KR')"></strong>원 · 부가세 <strong class="num" x-text="vat.toLocaleString('ko-KR')"></strong>원
+        <span x-show="supply === {{ inv.supply_amount | int }} && vat === {{ inv.vat_amount | int }}" class="badge badge-green">금액 일치</span></p>
+      <button class="btn" style="align-self:flex-start">대사하기</button>
+    </form>
+    {% else %}
+    <p class="hint">사업자번호 {{ inv.counterparty_biz_no_display }} 거래처의 대사 안 된 전표가 없어요. 거래처에 사업자번호가 등록되어 있는지, 전표를 입력했는지 확인해 주세요</p>
+    {% endif %}
+  </section>
+  {% endif %}
+  <a href="/tax-invoice/list" class="btn btn-grey" style="align-self:flex-start">목록</a>
+</div>
+{% endblock %}

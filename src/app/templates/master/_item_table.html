@@ -1,0 +1,39 @@
+{% import "_macros.html" as m with context %}
+<p class="hint list-count">{{ page.total }}개</p>
+{% if page.rows %}
+<div class="table-wrap">
+  <table class="table table-link">
+    <thead>
+      <tr><th>식별코드</th><th>품목명</th><th>품목그룹</th><th class="r">현재고</th><th>거래 단위</th><th class="r">매입단가</th><th class="r">판매단가</th><th>과세</th></tr>
+    </thead>
+    <tbody>
+      {% for (i,) in page.rows %}
+      <tr onclick="location.href='/master/items/{{ i.id }}'">
+        <td class="num nowrap">{{ i.code }}</td>
+        <td><a href="/master/items/{{ i.id }}"><strong>{{ i.name }}</strong></a>{% if i.spec %} <span class="sub">{{ i.spec }}</span>{% endif %} {{ m.active_badge(i.is_active) }}</td>
+        <td class="sub">{{ path(i.group) }}</td>
+        <td class="r nowrap">
+          {{ stock_label(stock.get(i.id, 0), i, units) }}
+          {% if i.content_qty and i.content_unit %}<br><span class="sub">1{{ i.stock_unit.name }} = {{ content(i.content_qty, i.content_unit, units) }}</span>{% endif %}
+        </td>
+        <td class="sub nowrap">
+          {% for u in i.units %}1{{ u.unit.name }}={{ fmt_qty(u.factor, 4) }}{{ i.stock_unit.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          {% set pu = i.units | selectattr('unit_id', 'equalto', i.purchase_unit_id) | first %}
+          {% set su = i.units | selectattr('unit_id', 'equalto', i.sale_unit_id) | first %}
+          {% if i.units %}<br>매입 {{ pu.unit.name if pu else i.stock_unit.name }} · 매출 {{ su.unit.name if su else i.stock_unit.name }}{% endif %}
+        </td>
+        <td class="r">{{ i.purchase_price | won }}</td>
+        <td class="r">{{ i.sale_price | won }}</td>
+        <td>{% if i.tax_exempt %}<span class="badge">면세</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ m.pager("/master/items", f.params(), page, "#item-table") }}
+{% else %}
+<div class="list-empty">
+  <p>조건에 맞는 품목이 없어요</p>
+  <p class="hint">엑셀로 한 번에 올릴 수도 있어요 · <a class="link" href="/master/import">엑셀 일괄 등록</a></p>
+</div>
+{% endif %}

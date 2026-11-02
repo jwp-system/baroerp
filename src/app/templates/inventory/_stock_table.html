@@ -1,0 +1,29 @@
+{% import "_macros.html" as m with context %}
+<p class="hint list-count">{{ page.total }}개 품목 · 가용 재고 = 현재고 − 폐기 대기</p>
+{% if rows %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr><th>품목</th><th>품목그룹</th><th class="r">현재고</th><th class="r">폐기 대기</th><th class="r">가용 재고</th><th class="r">기간 폐기</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      {% set u = r.item.stock_unit.name %}
+      {% set d = r.item.stock_unit.decimals %}
+      <tr>
+        <td><strong>{{ r.item.name }}</strong> <span class="sub num">{{ r.item.code }}</span> {{ m.active_badge(r.item.is_active) }}</td>
+        <td class="sub">{{ path(r.item.group) }}</td>
+        <td class="r nowrap">{{ stock_label(r.qty, r.item, units) }}</td>
+        <td class="r nowrap">{% if r.pending %}<span class="badge badge-yellow">{{ fmt_qty(r.pending, d) }}{{ u }}</span>{% else %}<span class="sub">-</span>{% endif %}</td>
+        <td class="r nowrap"><strong {% if r.available < 0 %}class="diff"{% endif %}>{{ fmt_qty(r.available, d) }}{{ u }}</strong></td>
+        <td class="r nowrap">{% if r.disposed %}{{ fmt_qty(r.disposed, d) }}{{ u }}{% else %}<span class="sub">-</span>{% endif %}</td>
+        <td class="r"><a class="link-sub" href="/inventory/moves?q={{ r.item.code | urlencode }}&start=2000-01-01">이력</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ m.pager("/inventory", f.params(), page, "#stock-table") }}
+{% else %}
+<div class="list-empty"><p>조건에 맞는 품목이 없어요</p></div>
+{% endif %}

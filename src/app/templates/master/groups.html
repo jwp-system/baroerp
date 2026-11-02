@@ -1,0 +1,62 @@
+{% extends "master/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block master %}
+<div class="form-layout">
+  <section class="card">
+    <h2 class="card-title">품목그룹</h2>
+    <div class="list tree">
+      {% for g, depth in tree %}
+      <a class="list-row" href="/master/groups/{{ g.id }}" style="padding-left: {{ 12 + depth * 24 }}px">
+        <div class="main">
+          <p class="title">{{ g.name }} {{ m.active_badge(g.is_active) }}</p>
+          <p class="desc num">{{ g.code }}{% if g.id in parents %} · 하위 그룹 있음{% endif %}</p>
+        </div>
+        <span class="value sub">{{ counts.get(g.id, 0) }}개</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <aside class="stack side-card">
+    <section class="card">
+      <h2 class="card-title">그룹 추가</h2>
+      <form method="post" action="/master/groups" class="stack">
+        {{ m.csrf() }}
+        <div class="field">
+          <label for="parent_id">상위 그룹</label>
+          <select class="input" id="parent_id" name="parent_id">
+            <option value="">없음(대분류)</option>
+            {% for g, depth in parent_options %}
+            <option value="{{ g.id }}">{{ '　' * depth }}{{ g.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="g-name">그룹명</label><input class="input" id="g-name" name="name" required></div>
+        <div class="field"><label for="g-code">식별코드</label><input class="input num" id="g-code" name="code" placeholder="예: RM" required></div>
+        <button class="btn">추가하기</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2 class="card-title">설정</h2>
+      <form method="post" action="/master/groups/settings" class="stack">
+        {{ m.csrf() }}
+        <div class="field">
+          <label for="depth">단계 수</label>
+          <select class="input" id="depth" name="item_group_depth">
+            {% for n in [1, 2, 3] %}
+            <option value="{{ n }}" {% if business.item_group_depth == n %}selected{% endif %}>{{ n }}단계</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="fmt">품목 식별코드 기본 형식</label>
+          <input class="input num" id="fmt" name="item_code_format" value="{{ business.item_code_format }}">
+          <p class="hint">{GROUP} 그룹 식별코드 · {YYYY} 연도 · {SEQ:4} 4자리 일련번호<br>예: RM-{YYYY}-{SEQ:4} → RM-2026-0001</p>
+        </div>
+        <button class="btn btn-grey">저장하기</button>
+      </form>
+    </section>
+  </aside>
+</div>
+{% endblock %}

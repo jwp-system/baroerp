@@ -1,0 +1,78 @@
+{% extends "inventory/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ d.number }} · {{ settings.app_name }}{% endblock %}
+{% block sub %}
+{% if d.reversal_of_id %}<a class="link" href="/inventory/disposals/{{ d.reversal_of_id }}">{{ d.reversal_of.number }}</a>을(를) 취소하는 전표예요
+{% elif d.status == 'pending' %}승인 대기 중이에요. 재고에서는 아직 빠지지 않았고 가용 재고에서만 빠져 있어요
+{% elif d.status == 'reversed' %}취소 전표 {% if reversal %}<a class="link" href="/inventory/disposals/{{ reversal.id }}">{{ reversal.number }}</a>{% endif %}로 취소했어요
+{% elif d.status == 'canceled' %}취소된 폐기예요
+{% elif locked %}마감된 달의 폐기라 취소하면 오늘 날짜로 취소 전표를 만들어요
+{% else %}승인되어 재고에서 빠졌어요
+{% endif %}
+{% endblock %}
+{% block head_actions %}
+{% if not d.reversal_of_id %}
+  {% if d.status == 'pending' %}
+    {% if can_approve %}
+    {{ m.approve_form("/inventory/disposals/%d/approve" % d.id, "승인하기", "승인할까요? 재고에서 빼고 손실로 분개해요") }}
+    {% endif %}
+    <form method="post" action="/inventory/disposals/{{ d.id }}/cancel" onsubmit="return confirm('폐기 등록을 취소할까요?')">{{ m.csrf() }}<button class="btn btn-danger-weak">등록 취소</button></form>
+  {% elif d.status == 'approved' and can_approve %}
+    {% if locked %}
+    <form method="post" action="/inventory/disposals/{{ d.id }}/cancel" onsubmit="return confirm('취소 전표를 만들까요?')">{{ m.csrf() }}<button class="btn btn-danger-weak">취소 전표 만들기</button></form>
+    {% else %}
+    <form method="post" action="/inventory/disposals/{{ d.id }}/unapprove" onsubmit="return confirm('승인을 취소할까요? 재고와 분개를 되돌려요')">{{ m.csrf() }}<button class="btn btn-grey">승인 취소</button></form>
+    {% endif %}
+  {% endif %}
+{% endif %}
+{% endblock %}
+{% block inventory %}
+{% set u = d.item.stock_unit.name %}
+{% set dec = d.item.stock_unit.decimals %}
+<div class="stack">
+  <section class="grid grid-4">
+    <div class="card"><p class="stat-label">폐기 수량</p><p class="stat-value num">{{ fmt_qty(d.qty, dec) }}<small>{{ u }}</small></p><p class="stat-delta">{{ d.reason_label }}</p></div>
+    <div class="card"><p class="stat-label">손실 금액</p><p class="stat-value num">{{ d.loss_amount | won }}<small>원</small></p>
+      <p class="stat-delta">{% if d.unit_cost is not none %}단가 {{ d.unit_cost | won }}원(이동평균){% else %}승인할 때 정해져요{% endif %}</p></div>
+    <div class="card"><p class="stat-label">{{ d.warehouse.name }} 가용 재고</p><p class="stat-value num">{{ fmt_qty(available.available, dec) }}<small>{{ u }}</small></p>
+      <p class="stat-delta">현재고 {{ fmt_qty(available.qty, dec) }}{{ u }} · 폐기 대기 {{ fmt_qty(available.pending, dec) }}{{ u }}</p></div>
+    <div class="card"><p class="stat-label">상태</p><p class="stat-value">{{ d.status_label }}</p>
+      <p class="stat-delta">{% if d.approved_by %}{{ d.approved_by.name }} · {{ d.approved_at | dt }}{% endif %}</p></div>
+  </section>
+
+  <section class="card">
+    <div class="list">
+      <div class="list-row"><div class="main"><p class="desc">폐기번호</p><p class="title num">{{ d.number }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">폐기일</p><p class="title num">{{ d.disposal_date }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">품목</p><p class="title">{{ d.item.name }} <span class="sub num">{{ d.item.code }}</span></p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">등록</p><p class="title">{{ d.created_by.name if d.created_by else '-' }} · {{ d.created_at | dt }}</p></div></div>
+      {% if d.memo %}<div class="list-row"><div class="main"><p class="desc">메모</p><p class="title">{{ d.memo }}</p></div></div>{% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2 class="card-title">증빙 {{ files | length }}개</h2></div>
+    {% if files %}
+    <div class="list">
+      {% for a in files %}
+      <a class="list-row" href="/inventory/attachments/{{ a.id }}" target="_blank">
+        <div class="main"><p class="title">{{ a.filename }}</p><p class="desc">{{ (a.size / 1024) | round(0) | int }}KB · {{ a.created_at | dt }}</p></div>
+        <span class="badge">{{ 'PDF' if a.content_type == 'application/pdf' else '사진' }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}<p class="hint">아직 증빙이 없어요. 사진·폐기 확인서·폐기업체 영수증을 올려 두면 손금 인정 근거가 돼요</p>{% endif %}
+    <form method="post" action="/inventory/disposals/{{ d.id }}/attachments" enctype="multipart/form-data" class="upload" style="margin-top:12px" x-data="{ names: [] }">
+      {{ m.csrf() }}
+      <label class="dropzone">
+        <input type="file" name="files" multiple accept="image/*,application/pdf" capture="environment" @change="names = [...$event.target.files].map(f => f.name)">
+        <span x-text="names.length ? names.join(', ') : '증빙 추가하기'"></span>
+      </label>
+      <button class="btn btn-weak btn-sm" :disabled="!names.length">올리기</button>
+    </form>
+  </section>
+
+  {% with entry = d.journal_entry, empty_text = '승인하면 손실 분개가 만들어져요' %}{% include "_journal.html" %}{% endwith %}
+  <a href="/inventory/disposals" class="btn btn-grey" style="align-self:flex-start">목록</a>
+</div>
+{% endblock %}

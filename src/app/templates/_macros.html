@@ -1,0 +1,47 @@
+{# 사용: {% import "_macros.html" as m with context %} #}
+
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">{% endmacro %}
+
+{% macro error_box(message) %}
+{% if message %}<p class="alert alert-error" role="alert">{{ message }}</p>{% endif %}
+{% endmacro %}
+
+{# 탭 내비게이션: tabs = [(key, label, href)] #}
+{% macro tab_nav(tabs, current) %}
+<nav class="tabs">
+  {% for key, label, href in tabs %}
+  <a href="{{ href }}" class="tab" {% if current == key %}aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+{% endmacro %}
+
+{# 페이지 번호: HTMX로 target 영역만 교체 #}
+{% macro pager(path, params, page, target) %}
+{% if page.pages > 1 %}
+<nav class="pager">
+  {% for p in range(1, page.pages + 1) %}
+  {% set url = path ~ "?" ~ (params | urlencode) ~ "&page=" ~ p %}
+  <a href="{{ url }}" hx-get="{{ url }}" hx-target="{{ target }}" hx-push-url="true"
+     {% if p == page.page %}aria-current="page"{% endif %}>{{ p }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+{% endmacro %}
+
+{% macro active_badge(is_active) %}
+{% if not is_active %}<span class="badge">사용 안 함</span>{% endif %}
+{% endmacro %}
+
+{# 간편 비밀번호(숫자 6자리) 입력. 로그인·등록 화면은 크게, 승인 버튼 옆은 작게 #}
+{% macro pin_input(name, autofocus=false, new=false, small=false) %}
+<input class="input {{ 'input-sm input-pin' if small else 'input-code' }} num" id="{{ name }}" name="{{ name }}" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" minlength="6" autocomplete="{{ 'new-password' if new else 'off' }}" required {% if autofocus %}autofocus{% endif %} {% if small %}placeholder="간편 비밀번호"{% endif %} aria-label="간편 비밀번호 6자리">
+{% endmacro %}
+
+{# 승인 버튼: 간편 비밀번호를 등록한 사용자(대표는 필수)는 6자리를 함께 입력해야 승인된다 #}
+{% macro approve_form(action, label="승인", confirm=none, small=false) %}
+<form method="post" action="{{ action }}" class="pin-approve" {% if confirm %}onsubmit="return confirm('{{ confirm }}')"{% endif %}>
+  {{ csrf() }}
+  {% if user.pin_hash %}{{ pin_input("pin", small=true) }}{% endif %}
+  <button class="btn{{ ' btn-sm' if small }}">{{ label }}</button>
+</form>
+{% endmacro %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}재고 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">재고</h1>
+    <p class="page-sub">{% block sub %}매입·매출 전표, 폐기, 실사 조정이 재고에 바로 반영돼요{% endblock %}</p>
+  </div>
+  <div class="head-actions">{% block head_actions %}{% endblock %}</div>
+</header>
+{{ m.tab_nav(tabs, tab) }}
+{% block inventory %}{% endblock %}
+{% endblock %}

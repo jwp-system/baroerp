@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}세금계산서 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">세금계산서</h1>
+    <p class="page-sub">{% block sub %}홈택스에서 직접 발행하고, 발행 목록을 올리면 전표와 자동으로 대사해요{% endblock %}</p>
+  </div>
+  <div class="head-actions">{% block head_actions %}{% endblock %}</div>
+</header>
+{{ m.tab_nav(tabs, tab) }}
+{% block tax %}{% endblock %}
+{% endblock %}

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}{{ settings.app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token(request) }}"}'>
+{% block body %}
+  <div class="layout">
+    <aside class="sidebar">
+      <a href="/" class="brand">바로<span>ERP</span></a>
+      {% for key, label, href in menu if key in allowed %}
+      <a href="{{ href }}" class="nav-item" {% if active == key %}aria-current="page"{% endif %}>{{ label }}</a>
+      {% endfor %}
+      {% if user %}
+      <div class="sidebar-foot">
+        <a href="/account" class="me" {% if active == 'account' %}aria-current="page"{% endif %}>
+          <span class="me-name">{{ user.name }}</span>
+          <span class="me-sub">{{ business.name }} · {{ user.role_label }}</span>
+        </a>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <button class="btn btn-grey btn-sm btn-block">로그아웃</button>
+        </form>
+      </div>
+      {% endif %}
+    </aside>
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <nav class="tabbar">
+    {% for key, label, href in mobile_tabs if key in allowed %}
+    <a href="{{ href }}" {% if active == key %}aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+    <a href="/account" {% if active == 'account' %}aria-current="page"{% endif %}>내 정보</a>
+  </nav>
+{% endblock %}
+  {% if flashes %}
+  <div class="toasts" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)" x-transition.opacity>
+    {% for f in flashes %}
+    <div class="toast {{ 'toast-error' if f.kind == 'error' }}" role="status">{{ f.message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</body>
+</html>

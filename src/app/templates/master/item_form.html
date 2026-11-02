@@ -1,0 +1,159 @@
+{% extends "master/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block master %}
+{% set v = form or item %}
+{% macro val(key) %}{% set x = v|attr(key) if v else none %}{{ '' if x is none else x }}{% endmacro %}
+{% macro num(key) %}{% set x = v|attr(key) if v else none %}{{ '' if x is none or x == '' else (x | float | round(4) | string).rstrip('0').rstrip('.') }}{% endmacro %}
+{# tojson은 큰따옴표를 이스케이프하지 않으므로 x-data는 작은따옴표 속성으로 쓴다(안에 작은따옴표 금지) #}
+<section class="card form-narrow"
+  x-data='{
+    defaults: {{ group_defaults | tojson }},
+    isNew: {{ "false" if item else "true" }},
+    rows: {{ trades | tojson }},
+    unitNames: {{ unit_names | tojson }},
+    stockUnit: {{ val("stock_unit_id") | trim | tojson }},
+    purchaseUnit: {{ val("purchase_unit_id") | trim | tojson }},
+    saleUnit: {{ val("sale_unit_id") | trim | tojson }},
+    init() {
+      // 새 품목은 첫 품목그룹의 기본 재고 단위·면세를 미리 채운다
+      if (this.stockUnit) return;  // 수정·입력 오류로 다시 연 화면은 그대로
+      this.stockUnit = document.getElementById("stock_unit_id").value;
+      this.applyDefaults(document.getElementById("group_id").value);
+    },
+    tradeUnits() {
+      const seen = new Set();
+      return this.rows.map(r => String(r.unit)).filter(u => u && u !== String(this.stockUnit) && !seen.has(u) && seen.add(u));
+    },
+    syncDefaults() {
+      // 지운 거래 단위나 재고 단위와 같아진 단위가 기본 단위면 재고 단위로 되돌린다
+      const units = this.tradeUnits();
+      if (this.purchaseUnit && !units.includes(String(this.purchaseUnit))) this.purchaseUnit = "";
+      if (this.saleUnit && !units.includes(String(this.saleUnit))) this.saleUnit = "";
+    },
+    applyDefaults(id) {
+      const d = this.defaults[id];
+      if (!this.isNew || !d) return;
+      if (d.unit) this.stockUnit = String(d.unit);
+      this.$root.querySelector("[name=tax_exempt]").checked = d.tax_exempt;
+    }
+  }'
+  x-effect="syncDefaults()">
+  <h2 class="card-title">{{ '품목 수정' if item else '품목 등록' }}</h2>
+  {{ m.error_box(error) }}
+  <form method="post" action="/master/items{{ '/' ~ item.id if item }}" class="stack">
+    {{ m.csrf() }}
+    <div class="field">
+      <label for="group_id">품목그룹 *</label>
+      <select class="input" id="group_id" name="group_id" required
+              hx-get="/master/items/code-preview" hx-target="#code-hint" hx-trigger="change{{ ', load' if not item }}"
+              @change="applyDefaults($event.target.value)">
+        {% for g, depth in groups %}
+        <option value="{{ g.id }}" {% if val('group_id') | string == g.id | string %}selected{% endif %}>{{ path(g) }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint">가장 아래 그룹에만 품목을 넣을 수 있어요</p>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="code">식별코드</label>
+        <input class="input num" id="code" name="code" value="{{ val('code') }}" placeholder="{{ '' if item else '자동 부여' }}">
+        <p class="hint" id="code-hint">{% if item %}바꿔도 지난 거래는 그대로 이어져요{% endif %}</p>
+      </div>
+      <div class="field">
+        <label for="name">품목명 *</label>
+        <input class="input" id="name" name="name" value="{{ val('name') }}" required>
+      </div>
+    </div>
+    <div class="field"><label for="spec">규격</label><input class="input" id="spec" name="spec" value="{{ val('spec') }}"></div>
+
+    <h3 class="section-label">단위와 용량</h3>
+    <div class="field-row">
+      <div class="field">
+        <label for="stock_unit_id">재고 단위 *</label>
+        <select class="input" id="stock_unit_id" name="stock_unit_id" x-model="stockUnit" required>
+          {% for u in units %}
+          <option value="{{ u.id }}" {% if val('stock_unit_id') | string == u.id | string %}selected{% endif %}>{{ u.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="content_qty">단위 하나의 용량</label>
+        <div class="input-group">
+          <input class="input num" id="content_qty" name="content_qty" value="{{ num('content_qty') }}" inputmode="decimal" placeholder="예: 500">
+          <select class="input" name="content_unit_id" aria-label="용량 단위">
+            <option value="">없음</option>
+            {% for u in units if u.kind != 'count' %}
+            <option value="{{ u.id }}" {% if val('content_unit_id') | string == u.id | string %}selected{% endif %}>{{ u.symbol }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>거래 단위 환산</label>
+      <p class="hint">매입은 박스, 판매는 병처럼 다른 단위로 거래할 때 써요</p>
+      <template x-for="(row, idx) in rows" :key="idx">
+        <div class="input-group trade-row">
+          <span class="prefix">1</span>
+          <select class="input" name="trade_unit_id" x-model="row.unit" aria-label="거래 단위">
+            <option value="">단위 선택</option>
+            {% for u in units %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+          </select>
+          <span class="prefix">=</span>
+          <input class="input num" name="trade_factor" x-model="row.factor" inputmode="decimal" placeholder="재고 단위 수량" aria-label="환산 수량">
+          <button type="button" class="btn btn-grey btn-sm" @click="rows.splice(idx, 1)" aria-label="삭제">삭제</button>
+        </div>
+      </template>
+      <button type="button" class="btn btn-weak btn-sm" style="align-self:flex-start" @click="rows.push({unit: '', factor: ''})">+ 거래 단위 추가</button>
+    </div>
+    <div class="field-row">
+      {% for key, label, model in [("purchase_unit_id", "매입 기본 단위", "purchaseUnit"), ("sale_unit_id", "매출 기본 단위", "saleUnit")] %}
+      <div class="field">
+        <label for="{{ key }}">{{ label }}</label>
+        <select class="input" id="{{ key }}" name="{{ key }}" x-model="{{ model }}">
+          <option value="" x-text="(unitNames[stockUnit] || '') + ' (재고 단위)'">재고 단위</option>
+          <template x-for="u in tradeUnits()" :key="u">
+            <option :value="u" :selected="u === String({{ model }})" x-text="unitNames[u]"></option>
+          </template>
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="hint">전표에서 품목을 고르면 이 단위로 채워져요. 예: 매입은 박스, 매출은 병</p>
+
+    <h3 class="section-label">단가·세금</h3>
+    <div class="field-row">
+      <div class="field">
+        <label for="purchase_price">매입단가</label>
+        <div class="input-suffix"><input class="input num" id="purchase_price" name="purchase_price" type="number" min="0" step="any" value="{{ num('purchase_price') or 0 }}"><span>원</span></div>
+      </div>
+      <div class="field">
+        <label for="sale_price">판매단가</label>
+        <div class="input-suffix"><input class="input num" id="sale_price" name="sale_price" type="number" min="0" step="any" value="{{ num('sale_price') or 0 }}"><span>원</span></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="safety_stock">적정재고</label>
+        <input class="input num" id="safety_stock" name="safety_stock" value="{{ num('safety_stock') }}" inputmode="decimal">
+      </div>
+      <label class="switch-row">
+        <span>면세 품목</span>
+        <span class="switch"><input type="checkbox" name="tax_exempt" value="true" {% if v and v.tax_exempt %}checked{% endif %}><span></span></span>
+      </label>
+    </div>
+
+    {% if item %}
+    <label class="switch-row">
+      <span>사용</span>
+      <span class="switch"><input type="checkbox" name="is_active" value="true" {% if item.is_active %}checked{% endif %}><span></span></span>
+    </label>
+    {% endif %}
+    <div class="actions">
+      <a href="/master/items" class="btn btn-grey">취소</a>
+      <button class="btn">{{ '저장하기' if item else '등록하기' }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

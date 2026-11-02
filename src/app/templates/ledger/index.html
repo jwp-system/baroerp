@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ labels.title }} · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">{{ labels.title }}</h1>
+    <p class="page-sub">거래처별 {{ labels.balance }}과 결제조건이 지난 금액을 확인하세요</p>
+  </div>
+  <a class="btn" href="/funds/new?kind={{ kind }}">{{ labels.paid }} 등록</a>
+</header>
+<div class="stack">
+  <section class="grid grid-4">
+    <div class="card">
+      <p class="stat-label">{{ labels.balance }} 합계</p>
+      <p class="stat-value num">{{ totals.balance | won }}<small>원</small></p>
+    </div>
+    <div class="card">
+      <p class="stat-label">30일 넘게 연체</p>
+      <p class="stat-value num {{ 'diff' if totals.overdue_30 }}">{{ totals.overdue_30 | won }}<small>원</small></p>
+    </div>
+    <div class="card">
+      <p class="stat-label">결제일 지남(1~30일)</p>
+      <p class="stat-value num">{{ totals.buckets['d30'] | won }}<small>원</small></p>
+    </div>
+    <div class="card">
+      <p class="stat-label">결제일 전</p>
+      <p class="stat-value num">{{ totals.buckets['current'] | won }}<small>원</small></p>
+    </div>
+  </section>
+  <section class="card">
+    <form class="filters" hx-get="{{ prefix }}" hx-target="#ledger-table" hx-push-url="true"
+          hx-trigger="change, keyup changed delay:400ms from:input[name=q], submit">
+      <div class="field grow"><label for="q">검색</label><input class="input input-sm" id="q" name="q" value="{{ q }}" placeholder="거래처명 또는 사업자번호"></div>
+      <div class="field">
+        <label for="only_open">거래처</label>
+        <select class="input input-sm" id="only_open" name="only_open">
+          <option value="1" {% if only_open == '1' %}selected{% endif %}>잔액 있는 거래처</option>
+          <option value="0" {% if only_open == '0' %}selected{% endif %}>거래한 전체 거래처</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-weak btn-sm"
+              onclick="location.href='{{ prefix }}/export.xlsx?' + new URLSearchParams(new FormData(this.form))">엑셀 내보내기</button>
+    </form>
+    <div id="ledger-table">{% include "ledger/_table.html" %}</div>
+  </section>
+</div>
+{% endblock %}

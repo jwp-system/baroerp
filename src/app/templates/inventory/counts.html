@@ -1,0 +1,46 @@
+{% extends "inventory/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block sub %}월말 실사 수량을 입력하면 장부와의 차이만큼 재고를 맞추고 감모 손실로 분개해요{% endblock %}
+{% block inventory %}
+<div class="form-layout">
+  <section class="card">
+    <h2 class="card-title">재고 조정 {{ page.total }}건</h2>
+    {% if page.rows %}
+    <div class="table-wrap">
+      <table class="table table-link">
+        <thead><tr><th>실사일</th><th>조정번호</th><th>창고</th><th class="r">차이 품목</th><th class="r">차이 금액</th><th>상태</th></tr></thead>
+        <tbody>
+          {% for (a,) in page.rows %}
+          <tr onclick="location.href='/inventory/counts/{{ a.id }}'" class="{{ 'row-muted' if a.status == 'canceled' }}">
+            <td class="num nowrap">{{ a.count_date }}</td>
+            <td class="num nowrap"><a href="/inventory/counts/{{ a.id }}">{{ a.number }}</a></td>
+            <td>{{ a.warehouse.name }}</td>
+            <td class="r">{{ a.lines | selectattr('diff_qty') | list | length }} / {{ a.lines | length }}</td>
+            <td class="r {{ 'diff' if a.amount < 0 }}">{{ a.amount | won }}</td>
+            <td>{% if a.reversal_of_id %}<span class="badge badge-red">취소 전표</span>{% elif a.status == 'confirmed' %}<span class="badge badge-blue">확정</span>{% else %}<span class="badge">{{ a.status_label }}</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ m.pager("/inventory/counts", {}, page, "body") }}
+    {% else %}
+    <div class="list-empty"><p>아직 실사 조정이 없어요</p></div>
+    {% endif %}
+  </section>
+  <aside class="card side-card">
+    <h2 class="card-title">실사 시작</h2>
+    <form method="get" action="/inventory/counts/new" class="stack">
+      <div class="field">
+        <label for="c-wh">창고</label>
+        <select class="input" id="c-wh" name="warehouse">
+          {% for w in warehouses %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label for="c-date">실사일</label><input class="input num" type="date" id="c-date" name="count_date" value="{{ today }}" max="{{ today }}"></div>
+      <button class="btn">실사표 열기</button>
+    </form>
+    <p class="hint" style="margin-top:12px">실사일 기준 장부 수량이 채워진 실사표가 열려요. 센 수량만 입력하면 돼요</p>
+  </aside>
+</div>
+{% endblock %}

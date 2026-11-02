@@ -1,0 +1,73 @@
+{% extends "tax_invoice/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block tax %}
+<div class="stack">
+  {% if result %}
+  {% set failed = result.errors or [] %}
+  <section class="card result-card {{ 'result-error' if failed and not result.created else 'result-ok' }}">
+    <p class="empty-title">{{ result.created }}건을 새로 올리고 {{ result.matched }}건을 전표와 대사했어요</p>
+    <p class="empty-sub">{{ result.filename }}{% if result.duplicates %} · 이미 있는 {{ result.duplicates }}건은 건너뛰었어요{% endif %}{% if failed %} · 못 올린 행 {{ failed | length }}개{% endif %}</p>
+    {% if failed %}
+    <div class="table-wrap" style="margin-top:16px">
+      <table class="table"><thead><tr><th>행</th><th>사유</th></tr></thead>
+        <tbody>{% for line, message in failed[:200] %}<tr><td class="num">{{ line or '-' }}</td><td>{{ message }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% if result.created > result.matched %}<a class="btn btn-weak btn-sm" style="margin-top:12px" href="/tax-invoice/list?matched=0&start=2000-01-01">대사 안 된 계산서 보기</a>{% endif %}
+  </section>
+  {% endif %}
+
+  <section class="grid grid-2">
+    <div class="card">
+      <h2 class="card-title">홈택스 목록 올리기</h2>
+      <ol class="steps">
+        <li>홈택스 &gt; 전자(세금)계산서 &gt; 목록조회에서 매출 또는 매입을 조회</li>
+        <li>엑셀 내려받기 (.xls로 받았다면 엑셀에서 .xlsx로 다시 저장)</li>
+        <li>여기에 올리기 · 매출·매입은 사업자번호로 알아서 나눠요</li>
+      </ol>
+      <form method="post" action="/tax-invoice/upload" enctype="multipart/form-data" class="upload" x-data="{ name: '' }">
+        {{ m.csrf() }}
+        <label class="dropzone">
+          <input type="file" name="file" accept=".xlsx,.csv" required @change="name = $event.target.files[0]?.name || ''">
+          <span x-text="name || '여기를 눌러 .xlsx 또는 .csv 파일 선택'"></span>
+        </label>
+        <button class="btn btn-block" :disabled="!name">올리기</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2 class="card-title">자동 대사 규칙</h2>
+      <ol class="steps">
+        <li>같은 사업자번호 거래처, 같은 달, 공급가액·세액이 같은 전표 1건(같은 날 우선)</li>
+        <li>없으면 그 달 대사 안 된 전표 전체 합계가 같을 때 월합계 발행으로 보고 모두 연결</li>
+        <li>그래도 안 맞으면 계산서 화면에서 직접 전표를 골라 대사</li>
+      </ol>
+      <p class="hint">같은 승인번호는 다시 올려도 한 번만 저장돼요</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">업로드 이력</h2>
+    {% if logs %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>올린 때</th><th>파일</th><th class="r">신규</th><th class="r">대사</th><th class="r">중복</th><th class="r">실패 행</th><th>올린 사람</th></tr></thead>
+        <tbody>
+          {% for l in logs %}
+          <tr>
+            <td class="num nowrap">{{ l.created_at | dt }}</td>
+            <td>{{ l.filename }}</td>
+            <td class="r">{{ l.created }}</td>
+            <td class="r">{{ l.matched }}</td>
+            <td class="r">{{ l.duplicates }}</td>
+            <td class="r {{ 'diff' if l.errors }}">{{ (l.errors or []) | length }}</td>
+            <td>{{ l.created_by.name if l.created_by else '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<p class="hint">아직 올린 파일이 없어요</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

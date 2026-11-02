@@ -1,0 +1,23 @@
+{# 자동 분개 표시: entry = JournalEntry | None #}
+<section class="card">
+  <h2 class="card-title">자동 분개</h2>
+  {% if entry %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>일자</th><th>계정과목</th><th class="r">차변</th><th class="r">대변</th></tr></thead>
+      <tbody>
+        {% for ln in entry.lines %}
+        <tr>
+          <td class="num nowrap">{{ entry.entry_date }}</td>
+          <td><span class="sub num">{{ ln.account.code }}</span> {{ ln.account.name }}</td>
+          <td class="r">{{ ln.debit | won if ln.debit else '' }}</td>
+          <td class="r">{{ ln.credit | won if ln.credit else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="hint">{{ empty_text | default('분개가 없어요') }}</p>
+  {% endif %}
+</section>

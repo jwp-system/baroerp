@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}기준정보 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">기준정보</h1>
+    <p class="page-sub">거래처와 품목을 한 번 등록하면 전표에서 바로 불러와요</p>
+  </div>
+  {% block head_actions %}{% endblock %}
+</header>
+{{ m.tab_nav(tabs, tab) }}
+{% block master %}{% endblock %}
+{% endblock %}

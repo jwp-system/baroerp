@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}보고서 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <h1 class="page-title">보고서</h1>
+  <p class="page-sub">기간별·거래처별 분석은 다음 단계에서 열려요</p>
+</header>
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">월 마감</h2>
+      <p class="hint">마감한 달의 전표는 고칠 수 없고, 취소하면 취소 전표가 만들어져요{% if not can_reopen %} · 마감 해제는 대표만 할 수 있어요{% endif %}</p>
+    </div>
+  </div>
+  <div class="list">
+    {% for ym in months %}
+    {% set c = closed.get(ym) %}
+    <div class="list-row">
+      <div class="main">
+        <p class="title num">{{ ym[:4] }}년 {{ ym[5:] | int }}월</p>
+        <p class="desc">전표 {{ counts.get(ym, 0) }}건{% if c %} · {{ c.closed_at | dt }} 마감{% endif %}</p>
+      </div>
+      {% if c %}
+      <span class="badge badge-green">마감</span>
+      {% if can_reopen %}
+      <form method="post" action="/reports/closing/{{ ym }}/reopen" onsubmit="return confirm('{{ ym }} 마감을 풀까요?')">
+        {{ m.csrf() }}<button class="btn btn-grey btn-sm">마감 해제</button>
+      </form>
+      {% endif %}
+      {% else %}
+      <span class="badge">진행 중</span>
+      {% if can_close %}
+      <form method="post" action="/reports/closing/{{ ym }}/close" onsubmit="return confirm('{{ ym }}을(를) 마감할까요? 이 달의 전표를 더는 고칠 수 없어요')">
+        {{ m.csrf() }}<button class="btn btn-weak btn-sm">마감하기</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

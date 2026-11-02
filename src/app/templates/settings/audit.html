@@ -1,0 +1,34 @@
+{% extends "settings/_layout.html" %}
+{% block settings %}
+<section class="card">
+  <form class="filters" hx-get="/settings/audit" hx-target="#audit-table" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:400ms from:input[name=q], submit">
+    <div class="field">
+      <label for="start">시작일</label>
+      <input class="input input-sm" type="date" id="start" name="start" value="{{ f.start }}">
+    </div>
+    <div class="field">
+      <label for="end">종료일</label>
+      <input class="input input-sm" type="date" id="end" name="end" value="{{ f.end }}">
+    </div>
+    <div class="field">
+      <label for="table">대상</label>
+      <select class="input input-sm" id="table" name="table">
+        <option value="">전체</option>
+        {% for value, label in table_labels.items() %}
+        <option value="{{ value }}" {% if f.table == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field grow">
+      <label for="q">사용자</label>
+      <input class="input input-sm" id="q" name="q" value="{{ f.q }}" placeholder="이름 또는 이메일">
+    </div>
+    <button type="button" class="btn btn-weak btn-sm"
+            onclick="location.href='/settings/audit/export.xlsx?' + new URLSearchParams(new FormData(this.form))">엑셀 내보내기</button>
+  </form>
+  <div id="audit-table">
+    {% include "settings/_audit_table.html" %}
+  </div>
+</section>
+{% endblock %}

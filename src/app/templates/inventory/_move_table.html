@@ -1,0 +1,26 @@
+{% import "_macros.html" as m with context %}
+<p class="hint list-count">{{ page.total }}건</p>
+{% if page.rows %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>일자</th><th>구분</th><th>품목</th><th>창고</th><th class="r">수량</th><th class="r">단가</th><th>근거 전표</th></tr></thead>
+    <tbody>
+      {% for (mv,) in page.rows %}
+      {% set src = source_of(mv) %}
+      <tr>
+        <td class="num nowrap">{{ mv.move_date }}</td>
+        <td><span class="badge {{ 'badge-blue' if mv.qty > 0 else ('badge-red' if mv.kind == 'disposal' else '') }}">{{ mv.kind_label }}</span></td>
+        <td>{{ mv.item.name }} <span class="sub num">{{ mv.item.code }}</span></td>
+        <td>{{ mv.warehouse.name }}</td>
+        <td class="r nowrap num">{{ '+' if mv.qty > 0 }}{{ fmt_qty(mv.qty, mv.item.stock_unit.decimals) }}{{ mv.item.stock_unit.name }}</td>
+        <td class="r">{{ mv.unit_cost | won if mv.unit_cost is not none else '' }}</td>
+        <td class="num nowrap">{% if src %}<a class="link" href="{{ src[1] }}">{{ src[0] }}</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ m.pager("/inventory/moves", f.params(), page, "#move-table") }}
+{% else %}
+<div class="list-empty"><p>이 기간에 입·출고 이력이 없어요</p></div>
+{% endif %}

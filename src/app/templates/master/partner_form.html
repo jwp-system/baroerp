@@ -1,0 +1,91 @@
+{% extends "master/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block master %}
+{% set v = form or partner %}
+{% macro val(key) %}{% set x = v|attr(key) if v else none %}{{ '' if x is none else x }}{% endmacro %}
+<div class="form-layout">
+  <section class="card">
+    <h2 class="card-title">{{ '거래처 수정' if partner else '거래처 등록' }}</h2>
+    {{ m.error_box(error) }}
+    <form method="post" action="/master/partners{{ '/' ~ partner.id if partner }}" class="stack">
+      {{ m.csrf() }}
+      <div class="field">
+        <label>구분</label>
+        <div class="segmented">
+          {% set cur = (v.kind if v else 'sales') %}
+          {% for value, label in kinds.items() %}
+          <label><input type="radio" name="kind" value="{{ value }}" {% if cur == value %}checked{% endif %}><span>{{ label }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="name">거래처명 *</label>
+          <input class="input" id="name" name="name" value="{{ val('name') }}" required autofocus>
+        </div>
+        <div class="field">
+          <label for="biz_no">사업자번호</label>
+          <input class="input num" id="biz_no" name="biz_no" value="{{ partner.biz_no_display if partner and not form else val('biz_no') }}" placeholder="000-00-00000" inputmode="numeric">
+          <p class="hint">개인 거래처는 비워 두세요</p>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="ceo_name">대표자</label><input class="input" id="ceo_name" name="ceo_name" value="{{ val('ceo_name') }}"></div>
+        <div class="field"><label for="phone">전화</label><input class="input num" id="phone" name="phone" value="{{ val('phone') }}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="biz_type">업태</label><input class="input" id="biz_type" name="biz_type" value="{{ val('biz_type') }}"></div>
+        <div class="field"><label for="biz_item">종목</label><input class="input" id="biz_item" name="biz_item" value="{{ val('biz_item') }}"></div>
+      </div>
+      <div class="field"><label for="address">주소</label><input class="input" id="address" name="address" value="{{ val('address') }}"></div>
+      <div class="field">
+        <label for="email">세금계산서·명세서 받는 이메일</label>
+        <input class="input" id="email" name="email" type="email" value="{{ val('email') }}">
+      </div>
+
+      <h3 class="section-label">담당자 <span class="hint">· 암호화해서 저장해요</span></h3>
+      <div class="field-row">
+        <div class="field"><label for="contact_name">이름</label><input class="input" id="contact_name" name="contact_name" value="{{ val('contact_name') }}"></div>
+        <div class="field"><label for="contact_phone">연락처</label><input class="input num" id="contact_phone" name="contact_phone" value="{{ val('contact_phone') }}"></div>
+      </div>
+      <div class="field"><label for="contact_email">이메일</label><input class="input" id="contact_email" name="contact_email" type="email" value="{{ val('contact_email') }}"></div>
+
+      <h3 class="section-label">거래 조건</h3>
+      <div class="field-row">
+        <div class="field">
+          <label for="payment_terms_days">결제조건</label>
+          <div class="input-suffix"><input class="input num" id="payment_terms_days" name="payment_terms_days" type="number" min="0" max="365" value="{{ val('payment_terms_days') or 30 }}"><span>일</span></div>
+        </div>
+        <div class="field">
+          <label for="credit_limit">여신한도</label>
+          <div class="input-suffix"><input class="input num" id="credit_limit" name="credit_limit" type="number" min="0" step="1" value="{{ (val('credit_limit') | int) if val('credit_limit') else '' }}"><span>원</span></div>
+        </div>
+      </div>
+      <div class="field"><label for="memo">메모</label><textarea class="input" id="memo" name="memo">{{ val('memo') }}</textarea></div>
+
+      {% if partner %}
+      <label class="switch-row">
+        <span>사용</span>
+        <span class="switch"><input type="checkbox" name="is_active" value="true" {% if partner.is_active %}checked{% endif %}><span></span></span>
+      </label>
+      {% endif %}
+      <div class="actions">
+        <a href="/master/partners" class="btn btn-grey">취소</a>
+        <button class="btn">{{ '저장하기' if partner else '등록하기' }}</button>
+      </div>
+    </form>
+  </section>
+
+  {% if partner and partner.biz_no %}
+  <aside class="card side-card">
+    <p class="stat-label">국세청 사업자 상태</p>
+    <p class="stat-value">{{ partner.biz_status_label }}</p>
+    <p class="hint">{% if partner.biz_status_checked_at %}{{ partner.biz_status_checked_at | dt }} 조회{% else %}아직 조회하지 않았어요{% endif %}</p>
+    <form method="post" action="/master/partners/{{ partner.id }}/check" style="margin-top:16px">
+      {{ m.csrf() }}
+      <button class="btn btn-weak btn-block">다시 조회</button>
+    </form>
+  </aside>
+  {% endif %}
+</div>
+{% endblock %}

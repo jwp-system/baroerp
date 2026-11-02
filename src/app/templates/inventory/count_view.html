@@ -1,0 +1,46 @@
+{% extends "inventory/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ adj.number }} · {{ settings.app_name }}{% endblock %}
+{% block sub %}
+{% if adj.reversal_of_id %}<a class="link" href="/inventory/counts/{{ adj.reversal_of_id }}">{{ adj.reversal_of.number }}</a>을(를) 취소하는 전표예요
+{% elif adj.status == 'reversed' %}취소 전표 {% if reversal %}<a class="link" href="/inventory/counts/{{ reversal.id }}">{{ reversal.number }}</a>{% endif %}로 취소했어요
+{% elif adj.status == 'canceled' %}취소된 재고 조정이에요
+{% elif locked %}마감된 달의 조정이라 취소하면 오늘 날짜로 취소 전표를 만들어요
+{% else %}{{ adj.warehouse.name }} · {{ adj.count_date }} 실사 결과를 재고에 반영했어요{% endif %}
+{% endblock %}
+{% block head_actions %}
+{% if can_cancel %}
+<form method="post" action="/inventory/counts/{{ adj.id }}/cancel" onsubmit="return confirm('재고 조정을 취소할까요?')">{{ m.csrf() }}<button class="btn btn-danger-weak">{{ '취소 전표 만들기' if locked else '조정 취소' }}</button></form>
+{% endif %}
+{% endblock %}
+{% block inventory %}
+<div class="stack">
+  <section class="card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>품목</th><th class="r">장부</th><th class="r">실사</th><th class="r">차이</th><th class="r">단가</th><th class="r">금액</th></tr></thead>
+        <tbody>
+          {% for ln in adj.lines %}
+          {% set dec = ln.item.stock_unit.decimals %}
+          {% set u = ln.item.stock_unit.name %}
+          <tr class="{{ 'row-muted' if not ln.diff_qty }}">
+            <td>{{ ln.item.name }} <span class="sub num">{{ ln.item.code }}</span></td>
+            <td class="r num nowrap">{{ fmt_qty(ln.book_qty, dec) }}{{ u }}</td>
+            <td class="r num nowrap">{{ fmt_qty(ln.counted_qty, dec) }}{{ u }}</td>
+            <td class="r num nowrap {{ 'diff' if ln.diff_qty < 0 }}">{{ '+' if ln.diff_qty > 0 }}{{ fmt_qty(ln.diff_qty, dec) }}{{ u }}</td>
+            <td class="r">{{ ln.unit_cost | won }}</td>
+            <td class="r {{ 'diff' if ln.amount < 0 }}">{{ ln.amount | won }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="totals totals-inline">
+      <div class="total-row total-sum"><span>차이 금액</span><span class="num">{{ adj.amount | won }}원</span></div>
+    </div>
+    {% if adj.memo %}<p class="hint">{{ adj.memo }}</p>{% endif %}
+  </section>
+  {% with entry = adj.journal_entry, empty_text = '차이 금액이 없어 분개하지 않았어요' %}{% include "_journal.html" %}{% endwith %}
+  <a href="/inventory/counts" class="btn btn-grey" style="align-self:flex-start">목록</a>
+</div>
+{% endblock %}

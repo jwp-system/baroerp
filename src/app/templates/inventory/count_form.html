@@ -1,0 +1,61 @@
+{% extends "inventory/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block sub %}센 수량만 입력하세요. 비워 둔 품목은 조정하지 않아요{% endblock %}
+{% block inventory %}
+{{ m.error_box(error) }}
+{% if locked %}<p class="alert alert-error">{{ count_date.year }}년 {{ count_date.month }}월은 마감되어 실사 조정을 할 수 없어요</p>{% endif %}
+{% if warehouse %}
+<form method="post" action="/inventory/counts" class="stack"
+      x-data="{ book: {}, counted: {} }" @keydown.enter="if ($event.target.tagName === 'INPUT') $event.preventDefault()">
+  {{ m.csrf() }}
+  <input type="hidden" name="warehouse_id" value="{{ warehouse.id }}">
+  <input type="hidden" name="count_date" value="{{ count_date }}">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">{{ warehouse.name }} · {{ count_date }} 실사표</h2>
+        <p class="hint">장부 수량은 실사일까지의 입·출고 기준이에요</p>
+      </div>
+      <a class="btn btn-grey btn-sm" href="/inventory/counts">다른 창고·날짜</a>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>품목</th><th class="r">장부 수량</th><th class="r">실사 수량</th><th class="r">차이</th></tr></thead>
+        <tbody>
+          {% for item, book in sheet %}
+          {% set dec = item.stock_unit.decimals %}
+          <tr x-data="{ v: '{{ form.get(item.id, '') }}' }">
+            <td>{{ item.name }} <span class="sub num">{{ item.code }}</span></td>
+            <td class="r nowrap num">{{ fmt_qty(book, dec) }}{{ item.stock_unit.name }}</td>
+            <td class="r">
+              <input type="hidden" name="item_id" value="{{ item.id }}">
+              <div class="input-suffix" style="justify-content:flex-end">
+                <input class="input input-sm input-xs num" name="counted" inputmode="decimal" x-model="v" aria-label="{{ item.name }} 실사 수량">
+                <span>{{ item.stock_unit.name }}</span>
+              </div>
+            </td>
+            <td class="r nowrap num">
+              <span x-show="v !== ''" :class="(parseFloat(v) - {{ book }}) < 0 ? 'diff' : ''"
+                    x-text="v === '' ? '' : ((parseFloat(v) - {{ book }}) > 0 ? '+' : '') + (Math.round((parseFloat(v) - {{ book }}) * 10000) / 10000).toLocaleString('ko-KR') + '{{ item.stock_unit.name }}'"></span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="list-empty">이 창고에 실사할 품목이 없어요</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="card">
+    <div class="field"><label for="memo">메모</label><input class="input" id="memo" name="memo" value="{{ memo | default('') }}" placeholder="예: 11월 월말 실사"></div>
+    <p class="hint" style="margin-top:8px">부족분은 (차) 재고자산감모손실 / (대) 상품, 초과분은 반대로 분개해요. 단가는 실사일 기준 이동평균이에요</p>
+    <div class="actions" style="margin-top:12px">
+      <a href="/inventory/counts" class="btn btn-grey">취소</a>
+      <button class="btn" {% if locked %}disabled{% endif %}>실사 반영하기</button>
+    </div>
+  </section>
+</form>
+{% else %}
+<div class="card list-empty"><p>사용 중인 창고가 없어요 · <a class="link" href="/master/warehouses">창고 관리</a></p></div>
+{% endif %}
+{% endblock %}

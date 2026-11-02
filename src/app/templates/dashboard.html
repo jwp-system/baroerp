@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="page-head">
+  <h1 class="page-title">이번 달 돈의 흐름</h1>
+  <p class="page-sub">매출·매입·재고를 한눈에 확인하세요</p>
+</header>
+
+{% macro delta(diff, unit="원") %}
+{% if diff > 0 %}<p class="stat-delta up">지난달 같은 기간보다 {{ diff | won }}{{ unit }} 늘었어요</p>
+{% elif diff < 0 %}<p class="stat-delta down">지난달 같은 기간보다 {{ (-diff) | won }}{{ unit }} 줄었어요</p>
+{% else %}<p class="stat-delta">지난달 같은 기간과 같아요</p>{% endif %}
+{% endmacro %}
+
+<div class="stack">
+  <section class="grid grid-4">
+    {% for key, title in [("sales", "이번 달 매출"), ("purchase", "이번 달 매입"), ("profit", "매출이익")] %}
+    <div class="card">
+      <p class="stat-label">{{ title }}</p>
+      <p class="stat-value num">{{ now[key] | won }}<small>원</small></p>
+      {{ delta(now[key] - prev[key]) }}
+    </div>
+    {% endfor %}
+    <a class="card" href="/inventory/disposals">
+      <p class="stat-label">재고 폐기 손실</p>
+      <p class="stat-value num">{{ loss | won }}<small>원</small></p>
+      {% if loss or loss_prev %}{{ delta(loss - loss_prev) }}{% else %}<p class="stat-delta">이번 달 폐기 없음</p>{% endif %}
+    </a>
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title">처리 대기</h2>
+      </div>
+      <div class="list">
+        {% for href, title, n, hint in [
+          ("/funds/approvals", "승인 대기 지급", pending.payments, "대표 승인이 필요해요"),
+          ("/inventory/disposals?status=pending&start=2000-01-01", "승인 대기 폐기", pending.disposals, "승인하면 재고에서 빠져요"),
+          ("/tax-invoice", "발급 기한이 다가온 세금계산서", pending.invoices_unissued, "지난달 매출 중 아직 대사 안 된 전표"),
+          ("/tax-invoice/list?matched=0&start=2000-01-01", "대사 안 된 세금계산서", pending.invoices_unmatched, "맞는 전표를 찾지 못했어요"),
+        ] %}
+        <a class="list-row" href="{{ href }}">
+          <div class="main"><p class="title">{{ title }}</p><p class="desc">{{ hint }}</p></div>
+          <span class="badge {{ 'badge-red' if n else '' }}">{{ n }}건</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">30일 넘은 미수금</h2>
+          <p class="hint num">전체 미수금 {{ receivable_total | won }}원</p>
+        </div>
+        <a class="btn btn-grey btn-sm" href="/receivables">전체보기</a>
+      </div>
+      <div class="list">
+        {% for b in overdue %}
+        <a class="list-row" href="/receivables/{{ b.partner.id }}">
+          <div class="main"><p class="title">{{ b.partner.name }}</p><p class="desc">최장 {{ b.max_overdue }}일 연체 · 미수금 {{ b.balance | won }}원</p></div>
+          <span class="value num diff">{{ b.overdue_30 | won }}원</span>
+        </a>
+        {% else %}
+        <p class="list-empty">연체된 거래처가 없어요</p>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid-2">
+    <a class="card" href="/receivables">
+      <p class="stat-label">이번 주 수금 예정</p>
+      <p class="stat-value num">{{ due_in | won }}<small>원</small></p>
+      <p class="stat-delta">결제 예정일이 일요일까지인 미수금</p>
+    </a>
+    <a class="card" href="/payables">
+      <p class="stat-label">이번 주 지급 예정</p>
+      <p class="stat-value num">{{ due_out | won }}<small>원</small></p>
+      <p class="stat-delta">결제 예정일이 일요일까지인 미지급금</p>
+    </a>
+  </section>
+</div>
+{% endblock %}

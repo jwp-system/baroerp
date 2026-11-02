@@ -1,0 +1,27 @@
+# 설치형 기본(SQLite):         docker compose up -d
+# PostgreSQL 사용:             docker compose --profile pg up -d  (+ .env의 DATABASE_URL 변경)
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DEBUG: "false"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    profiles: ["pg"]
+    environment:
+      POSTGRES_USER: baroerp
+      POSTGRES_PASSWORD: baroerp
+      POSTGRES_DB: baroerp
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:

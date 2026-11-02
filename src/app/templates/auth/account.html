@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}내 정보 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head">
+  <h1 class="page-title">내 정보</h1>
+</header>
+<div class="stack narrow">
+  <section class="card">
+    <div class="list">
+      <div class="list-row"><div class="main"><p class="desc">이름</p><p class="title">{{ user.name }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">이메일</p><p class="title">{{ user.email }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">역할</p><p class="title">{{ user.role_label }}</p></div></div>
+      <a class="list-row" href="/account/pin">
+        <div class="main"><p class="desc">2단계 인증(간편 비밀번호)</p><p class="title">{{ '켜짐' if user.pin_hash else '꺼짐' }}</p></div>
+        <span class="badge {{ 'badge-green' if user.pin_hash else 'badge-yellow' }}">{{ '변경하기' if user.pin_hash else '등록하기' }}</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">비밀번호 변경</h2>
+    <form method="post" action="/account/password" class="stack">
+      {{ m.csrf() }}
+      <div class="field">
+        <label for="current">현재 비밀번호</label>
+        <input class="input" id="current" name="current" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="field">
+        <label for="new">새 비밀번호</label>
+        <input class="input" id="new" name="new" type="password" minlength="8" autocomplete="new-password" required>
+      </div>
+      <button class="btn">변경하기</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

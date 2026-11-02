@@ -1,0 +1,79 @@
+{% extends "settings/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block settings %}
+<div class="stack">
+  <section class="card">
+    <div class="card-head">
+      <h2 class="card-title">사용자 {{ users | length }}명</h2>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>이름</th><th>이메일</th><th>역할</th><th>2단계 인증</th><th>최근 로그인</th><th>사용</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          {% set fid = "user-" ~ u.id %}
+          <tr>
+            <td class="nowrap">{{ u.name }}{% if u.id == user.id %} <span class="badge badge-blue">나</span>{% endif %}</td>
+            <td>{{ u.email }}</td>
+            <td>
+              <select class="input input-sm" name="role" form="{{ fid }}" aria-label="{{ u.name }} 역할">
+                {% for value, label in roles.items() %}
+                <option value="{{ value }}" {% if u.role == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="nowrap">
+              {% if u.pin_hash %}
+              <span class="badge badge-green">켜짐</span>
+              <label class="check"><input type="checkbox" name="reset_2fa" value="true" form="{{ fid }}"> 초기화</label>
+              {% else %}<span class="badge">꺼짐</span>{% endif %}
+            </td>
+            <td class="num nowrap sub">{{ u.last_login_at | dt }}</td>
+            <td>
+              <label class="switch"><input type="checkbox" name="is_active" value="true" form="{{ fid }}" aria-label="{{ u.name }} 사용" {% if u.is_active %}checked{% endif %}><span></span></label>
+            </td>
+            <td>
+              <form method="post" action="/settings/users/{{ u.id }}" id="{{ fid }}">
+                {{ m.csrf() }}
+                <button class="btn btn-grey btn-sm">저장</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card narrow">
+    <h2 class="card-title">사용자 추가</h2>
+    <form method="post" action="/settings/users" class="stack">
+      {{ m.csrf() }}
+      <div class="field">
+        <label for="new-name">이름</label>
+        <input class="input" id="new-name" name="name" required>
+      </div>
+      <div class="field">
+        <label for="new-email">이메일</label>
+        <input class="input" id="new-email" name="email" type="email" required>
+      </div>
+      <div class="field">
+        <label for="new-role">역할</label>
+        <select class="input" id="new-role" name="role">
+          {% for value, label in roles.items() if value != 'owner' %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="new-password">임시 비밀번호</label>
+        <input class="input" id="new-password" name="password" type="password" minlength="8" autocomplete="new-password" required>
+        <p class="hint">첫 로그인 후 내 정보에서 바꾸도록 안내해 주세요</p>
+      </div>
+      <button class="btn">추가하기</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

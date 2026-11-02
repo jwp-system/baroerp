@@ -1,0 +1,94 @@
+{% extends "master/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block master %}
+<div class="form-layout">
+  <section class="card">
+    <h2 class="card-title">{{ group.name }}</h2>
+    <form method="post" action="/master/groups/{{ group.id }}" class="stack">
+      {{ m.csrf() }}
+      <div class="field-row">
+        <div class="field"><label for="name">그룹명</label><input class="input" id="name" name="name" value="{{ group.name }}" required></div>
+        <div class="field"><label for="code">식별코드</label><input class="input num" id="code" name="code" value="{{ group.code }}" required></div>
+      </div>
+      {% if not group.is_uncategorized %}
+      <div class="field">
+        <label for="parent_id">상위 그룹</label>
+        <select class="input" id="parent_id" name="parent_id">
+          <option value="">없음(대분류)</option>
+          {% for g, depth in parent_options %}
+          <option value="{{ g.id }}" {% if group.parent_id == g.id %}selected{% endif %}>{{ '　' * depth }}{{ g.name }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">옮기면 보고서의 과거 실적도 새 그룹으로 다시 집계돼요</p>
+      </div>
+      {% endif %}
+      <div class="field"><label for="sort_order">정렬 순서</label><input class="input num" id="sort_order" name="sort_order" type="number" value="{{ group.sort_order }}"></div>
+
+      <h3 class="section-label">품목 등록 기본값</h3>
+      <div class="field-row">
+        <div class="field">
+          <label for="default_unit_id">재고 단위</label>
+          <select class="input" id="default_unit_id" name="default_unit_id">
+            <option value="">지정 안 함</option>
+            {% for u in units %}<option value="{{ u.id }}" {% if group.default_unit_id == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="default_safety_stock">적정재고</label>
+          <input class="input num" id="default_safety_stock" name="default_safety_stock" value="{{ group.default_safety_stock if group.default_safety_stock is not none else '' }}">
+        </div>
+      </div>
+      <div class="field">
+        <label for="code_format">식별코드 형식</label>
+        <input class="input num" id="code_format" name="code_format" value="{{ group.code_format or '' }}" placeholder="{{ format_hint }}">
+        <p class="hint">비우면 상위 그룹 또는 기본 형식을 따라요. 바꿔도 기존 식별코드는 그대로예요</p>
+      </div>
+      <label class="switch-row">
+        <span>면세 품목 그룹</span>
+        <span class="switch"><input type="checkbox" name="default_tax_exempt" value="true" {% if group.default_tax_exempt %}checked{% endif %}><span></span></span>
+      </label>
+      <label class="switch-row">
+        <span>사용</span>
+        <span class="switch"><input type="checkbox" name="is_active" value="true" {% if group.is_active %}checked{% endif %} {% if group.is_uncategorized %}disabled{% endif %}><span></span></span>
+      </label>
+      {% if group.is_uncategorized %}<input type="hidden" name="is_active" value="true">{% endif %}
+      <div class="actions">
+        <a href="/master/groups" class="btn btn-grey">목록</a>
+        <button class="btn">저장하기</button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="stack side-card">
+    <section class="card">
+      <p class="stat-label">소속 품목(하위 포함)</p>
+      <p class="stat-value num">{{ item_count }}<small>개</small></p>
+      <a class="btn btn-weak btn-sm" style="margin-top:12px" href="/master/items?group={{ group.id }}">품목 보기</a>
+    </section>
+
+    {% if item_count %}
+    <section class="card">
+      <h2 class="card-title">단가 일괄 조정</h2>
+      <form method="post" action="/master/groups/{{ group.id }}/adjust-price" class="stack"
+            onsubmit="return confirm('하위 그룹 품목까지 단가를 바꿔요. 계속할까요?')">
+        {{ m.csrf() }}
+        <div class="segmented">
+          <label><input type="radio" name="target" value="sale" checked><span>판매단가</span></label>
+          <label><input type="radio" name="target" value="purchase"><span>매입단가</span></label>
+        </div>
+        <div class="input-suffix"><input class="input num" name="percent" type="number" step="0.1" min="-90" max="1000" placeholder="예: 5 또는 -3" required aria-label="조정 비율"><span>%</span></div>
+        <button class="btn btn-grey">조정하기</button>
+      </form>
+    </section>
+    {% endif %}
+
+    {% if not group.is_uncategorized %}
+    <form method="post" action="/master/groups/{{ group.id }}/delete"
+          onsubmit="return confirm('{{ '품목이나 하위 그룹이 있어 사용 안 함으로 바뀌어요.' if item_count or has_children else '그룹을 지울까요?' }}')">
+      {{ m.csrf() }}
+      <button class="btn btn-danger-weak btn-block">그룹 삭제</button>
+    </form>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

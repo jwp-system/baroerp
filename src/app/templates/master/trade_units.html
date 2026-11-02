@@ -1,0 +1,81 @@
+{% extends "master/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block master %}
+<div class="form-layout" x-data="{ n: 0, count() { this.n = document.querySelectorAll('#tu-table input[name=item_id]:checked').length } }"
+     @change="count()" @htmx:after-swap.window="count()">
+  <section class="card">
+    <form class="filters" hx-get="/master/trade-units" hx-target="#tu-table" hx-push-url="true"
+          hx-trigger="change, keyup changed delay:400ms from:input[name=q], submit">
+      <div class="field grow">
+        <label for="q">검색</label>
+        <input class="input input-sm" id="q" name="q" value="{{ f.q }}" placeholder="품목명 또는 식별코드">
+      </div>
+      <div class="field">
+        <label for="group">품목그룹</label>
+        <select class="input input-sm" id="group" name="group">
+          <option value="">전체</option>
+          {% for g, depth in groups %}
+          <option value="{{ g.id }}" {% if f.group == g.id %}selected{% endif %}>{{ '　' * depth }}{{ g.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-unit">거래 단위</label>
+        <select class="input input-sm" id="f-unit" name="unit">
+          <option value="">전체</option>
+          {% for u in units %}<option value="{{ u.id }}" {% if f.unit == u.id %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="has">환산 등록</label>
+        <select class="input input-sm" id="has" name="has">
+          <option value="" {% if not f.has %}selected{% endif %}>전체</option>
+          <option value="with" {% if f.has == 'with' %}selected{% endif %}>있는 품목</option>
+          <option value="without" {% if f.has == 'without' %}selected{% endif %}>없는 품목</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="active">사용</label>
+        <select class="input input-sm" id="active" name="active">
+          <option value="1" {% if f.active == '1' %}selected{% endif %}>사용</option>
+          <option value="0" {% if f.active == '0' %}selected{% endif %}>사용 안 함</option>
+          <option value="" {% if f.active == '' %}selected{% endif %}>전체</option>
+        </select>
+      </div>
+    </form>
+    <div id="tu-table">{% include "master/_trade_unit_table.html" %}</div>
+  </section>
+
+  <aside class="card side-card">
+    <h2 class="card-title">한 번에 적용</h2>
+    <form method="post" action="/master/trade-units" id="tu-form" class="stack">
+      {{ m.csrf() }}
+      <div class="field">
+        <span class="label">대상</span>
+        <div class="segmented">
+          <label><input type="radio" name="scope" value="selected" checked><span>선택한 <b x-text="n">0</b>개</span></label>
+          <label><input type="radio" name="scope" value="filtered"><span>검색 결과 전체</span></label>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="tu-unit">거래 단위</label>
+          <select class="input" id="tu-unit" name="unit_id" required>
+            {% for u in units %}<option value="{{ u.id }}" {% if u.name == '박스' %}selected{% endif %}>{{ u.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="tu-factor">환산 수량</label>
+          <input class="input num" id="tu-factor" name="factor" type="number" min="0" step="any" placeholder="예: 20">
+        </div>
+      </div>
+      <p class="hint">1박스 = 재고 단위 20개처럼 입력해요. 이미 있으면 수량만 바뀌고, 등록된 전표는 그대로예요</p>
+      <label class="check"><input type="checkbox" name="purchase_default" value="true"> 매입 기본 단위로</label>
+      <label class="check"><input type="checkbox" name="sale_default" value="true"> 매출 기본 단위로</label>
+      <button class="btn" name="action" value="apply">적용하기</button>
+      <button class="btn btn-weak" name="action" value="remove" formnovalidate
+              onclick="return confirm('고른 거래 단위 환산을 지울까요? 기본 단위였다면 재고 단위로 돌아가요')">이 거래 단위 지우기</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

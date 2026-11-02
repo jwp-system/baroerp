@@ -1,0 +1,44 @@
+{% extends "auth/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}시작하기 · {{ settings.app_name }}{% endblock %}
+{% block auth %}
+<h1 class="auth-title">바로ERP를 시작해요</h1>
+<p class="auth-sub">사업장과 대표 계정을 만들면 바로 쓸 수 있어요</p>
+{{ m.error_box(error) }}
+<form method="post" action="/setup" class="stack">
+  {{ m.csrf() }}
+  <h2 class="section-label">사업장</h2>
+  <div class="field">
+    <label for="biz_name">상호</label>
+    <input class="input" id="biz_name" name="biz_name" value="{{ form.biz_name or '' }}" required autofocus>
+  </div>
+  <div class="field">
+    <label for="biz_no">사업자번호</label>
+    <input class="input num" id="biz_no" name="biz_no" value="{{ form.biz_no or '' }}" placeholder="000-00-00000" inputmode="numeric" required>
+  </div>
+  <div class="field">
+    <label for="tax_type">과세 유형</label>
+    <select class="input" id="tax_type" name="tax_type">
+      {% for value, label in tax_types.items() %}
+      <option value="{{ value }}" {% if form.tax_type == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <h2 class="section-label">대표 계정</h2>
+  <div class="field">
+    <label for="name">이름</label>
+    <input class="input" id="name" name="name" value="{{ form.name or '' }}" required>
+  </div>
+  <div class="field">
+    <label for="email">이메일</label>
+    <input class="input" id="email" name="email" type="email" value="{{ form.email or '' }}" autocomplete="username" required>
+  </div>
+  <div class="field">
+    <label for="password">비밀번호</label>
+    <input class="input" id="password" name="password" type="password" minlength="8" autocomplete="new-password" required>
+    <p class="hint">8자 이상</p>
+  </div>
+  <button class="btn btn-lg btn-block">시작하기</button>
+</form>
+{% endblock %}

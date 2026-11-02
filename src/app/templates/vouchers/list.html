@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ label }} · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">{{ label }}</h1>
+    <p class="page-sub">{{ label }} 전표를 입력하면 재고와 거래처 원장에 바로 반영돼요</p>
+  </div>
+  <a href="{{ prefix }}/new" class="btn">{{ label }} 전표 입력</a>
+</header>
+<section class="card">
+  <form class="filters" hx-get="{{ prefix }}" hx-target="#voucher-table" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:400ms from:input[name=q], submit">
+    <div class="field">
+      <label for="start">시작일</label>
+      <input class="input input-sm" type="date" id="start" name="start" value="{{ f.start }}">
+    </div>
+    <div class="field">
+      <label for="end">종료일</label>
+      <input class="input input-sm" type="date" id="end" name="end" value="{{ f.end }}">
+    </div>
+    <div class="field grow">
+      <label for="q">검색</label>
+      <input class="input input-sm" id="q" name="q" value="{{ f.q }}" placeholder="거래처명 또는 전표번호">
+    </div>
+    <div class="field">
+      <label for="status">상태</label>
+      <select class="input input-sm" id="status" name="status">
+        <option value="">전체</option>
+        {% for value, l in statuses.items() %}
+        <option value="{{ value }}" {% if f.status == value %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="button" class="btn btn-weak btn-sm"
+            onclick="location.href='{{ prefix }}/export.xlsx?' + new URLSearchParams(new FormData(this.form))">엑셀 내보내기</button>
+  </form>
+  <div id="voucher-table">{% include "vouchers/_table.html" %}</div>
+</section>
+{% endblock %}

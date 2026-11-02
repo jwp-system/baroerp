@@ -1,0 +1,43 @@
+{% extends "master/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block master %}
+<div class="form-layout">
+  <section class="card">
+    <h2 class="card-title">계정과목 {{ accounts | length }}개</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>코드</th><th>계정명</th><th>유형</th><th>사용</th><th></th></tr></thead>
+        <tbody>
+          {% for a in accounts %}
+          {% set fid = "acc-" ~ a.id %}
+          <tr>
+            <td><input class="input input-sm input-xs num" name="code" value="{{ a.code }}" form="{{ fid }}" aria-label="{{ a.name }} 코드" required></td>
+            <td><input class="input input-sm" name="name" value="{{ a.name }}" form="{{ fid }}" aria-label="계정명" required>{% if a.system_key %} <span class="badge badge-blue">자동 분개</span>{% endif %}</td>
+            <td>{{ a.kind_label }}</td>
+            <td><label class="switch"><input type="checkbox" name="is_active" value="true" form="{{ fid }}" aria-label="{{ a.name }} 사용" {% if a.is_active %}checked{% endif %} {% if a.system_key %}disabled{% endif %}><span></span></label>
+              {% if a.system_key %}<input type="hidden" name="is_active" value="true" form="{{ fid }}">{% endif %}</td>
+            <td><form method="post" action="/master/accounts/{{ a.id }}" id="{{ fid }}">{{ m.csrf() }}<button class="btn btn-grey btn-sm">저장</button></form></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-top:12px">'자동 분개' 계정은 폐기·재고 조정 손실을 분개할 때 쓰여요. 코드와 이름은 회계 프로그램에 맞게 바꿀 수 있고, 최종 기준은 세무대리인과 정하세요</p>
+  </section>
+  <aside class="card side-card">
+    <h2 class="card-title">계정 추가</h2>
+    <form method="post" action="/master/accounts" class="stack">
+      {{ m.csrf() }}
+      <div class="field-row">
+        <div class="field"><label for="a-code">코드</label><input class="input num" id="a-code" name="code" placeholder="예: 812" required></div>
+        <div class="field">
+          <label for="a-kind">유형</label>
+          <select class="input" id="a-kind" name="kind">{% for value, label in kinds.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      <div class="field"><label for="a-name">계정명</label><input class="input" id="a-name" name="name" placeholder="예: 여비교통비" required></div>
+      <button class="btn">추가하기</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

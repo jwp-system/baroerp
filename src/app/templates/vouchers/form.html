@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ label }} 전표 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">{% if voucher %}{{ label }} 전표 <span class="num sub-title">{{ voucher.number }}</span>{% else %}{{ label }} 전표 입력{% endif %}</h1>
+    <p class="page-sub">
+      {% if kind == 'sales' %}저장하면 바로 출고되어 재고가 줄어요{% else %}저장하면 바로 입고되어 재고가 늘어요{% endif %}
+    </p>
+    {% if links and (links.paid or links.invoice) %}
+    <p class="page-sub">
+      {% if links.paid %}{{ links.paid_label }} <a class="link" href="{{ links.ledger }}/{{ voucher.partner_id }}">{{ links.paid | won }}원</a>{% if links.paid < voucher.total_amount %} · 남은 금액 {{ (voucher.total_amount - links.paid) | won }}원{% else %} · 완납{% endif %}{% endif %}
+      {% if links.paid and links.invoice %} · {% endif %}
+      {% if links.invoice %}세금계산서 <a class="link num" href="/tax-invoice/{{ links.invoice.id }}">{{ links.invoice.approval_no }}</a>{% endif %}
+    </p>
+    {% endif %}
+  </div>
+  {% if voucher %}
+  <div class="head-actions">
+    {% if kind == 'sales' %}<a class="btn btn-weak" href="{{ prefix }}/{{ voucher.id }}/print" target="_blank">거래명세서</a>{% endif %}
+    <form method="post" action="{{ prefix }}/{{ voucher.id }}/cancel" onsubmit="return confirm('전표를 취소할까요? 재고도 되돌려요')">
+      {{ m.csrf() }}
+      <button class="btn btn-danger-weak">전표 취소</button>
+    </form>
+  </div>
+  {% endif %}
+</header>
+
+{{ m.error_box(error) }}
+
+<form method="post" action="{{ prefix }}{{ '/' ~ voucher.id if voucher }}"
+      x-data='voucherForm({{ {"initial": initial, "prefix": prefix, "chargesVat": charges_vat} | tojson }})'
+      class="stack" @keydown.enter="if ($event.target.tagName === 'INPUT') $event.preventDefault()">
+  {{ m.csrf() }}
+  <section class="card">
+    <div class="field-row">
+      <div class="field">
+        <label for="voucher_date">일자</label>
+        <input class="input num" type="date" id="voucher_date" name="voucher_date" x-model="date" required>
+      </div>
+      <div class="field combo" @click.outside="partnerOpen = false">
+        <label for="partner-q">거래처</label>
+        <input type="hidden" name="partner_id" :value="partner ? partner.id : ''">
+        <template x-if="partner">
+          <div class="picked">
+            <span x-text="partner.name"></span>
+            <button type="button" class="btn btn-grey btn-sm" @click="partner = null; $nextTick(() => $refs.partnerInput.focus())">바꾸기</button>
+          </div>
+        </template>
+        <input x-show="!partner" x-ref="partnerInput" class="input" id="partner-q" placeholder="거래처명 또는 사업자번호로 검색" autocomplete="off"
+               x-model="partnerQuery" @input.debounce.250ms="searchPartners()" @focus="searchPartners()">
+        <div class="combo-list" x-show="partnerOpen && !partner" x-cloak>
+          <template x-for="p in partnerResults" :key="p.id">
+            <button type="button" class="combo-item" @click="pickPartner(p)">
+              <span x-text="p.name"></span>
+              <span class="sub num" x-text="p.biz_no"></span>
+              <span class="badge badge-red" x-show="p.status === 'closed' || p.status === 'suspended'" x-text="p.status === 'closed' ? '폐업' : '휴업'"></span>
+            </button>
+          </template>
+          <p class="combo-empty" x-show="!partnerResults.length">찾는 거래처가 없어요 · <a class="link" href="/master/partners/new" target="_blank">새로 등록</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">품목</h2>
+    <div class="voucher-lines">
+      <div class="vl-head">
+        <span>품목</span><span>단위</span><span class="r">수량</span><span class="r">단가</span><span class="r">공급가액</span><span>창고</span><span></span>
+      </div>
+      <template x-for="(line, idx) in lines" :key="idx">
+        <div class="vl-row">
+          <div class="combo" @click.outside="if (itemOpenIdx === idx) itemOpenIdx = null">
+            <input type="hidden" name="item_id" :value="line.item ? line.item.id : ''">
+            <template x-if="line.item">
+              <div class="picked">
+                <div>
+                  <span x-text="line.item.name"></span>
+                  <span class="sub num" x-text="line.item.code"></span>
+                  <span class="badge" x-show="line.item.tax_exempt">면세</span>
+                  <p class="hint" x-text="'현재고 ' + (line.item.stock || '-')"></p>
+                </div>
+                <button type="button" class="btn btn-grey btn-sm" @click="line.item = null">바꾸기</button>
+              </div>
+            </template>
+            <input x-show="!line.item" class="input input-sm" placeholder="품목명·식별코드" autocomplete="off" aria-label="품목 검색"
+                   x-model="itemQuery[idx]" @input.debounce.250ms="searchItems(idx)" @focus="searchItems(idx)">
+            <div class="combo-list" x-show="itemOpenIdx === idx && !line.item" x-cloak>
+              <template x-for="it in itemResults" :key="it.id">
+                <button type="button" class="combo-item" @click="pickItem(idx, it)">
+                  <span x-text="it.name"></span><span class="sub num" x-text="it.code"></span>
+                  <span class="sub" x-text="it.stock"></span>
+                </button>
+              </template>
+              <p class="combo-empty" x-show="!itemResults.length">찾는 품목이 없어요</p>
+            </div>
+          </div>
+          <div>
+            <input type="hidden" name="unit_id" :value="line.unit_id">
+            <select class="input input-sm" x-model="line.unit_id" @change="changeUnit(idx)" :disabled="!line.item" aria-label="단위">
+              <template x-for="u in (line.item ? line.item.units : [])" :key="u.id">
+                <option :value="String(u.id)" x-text="u.name" :selected="String(u.id) === String(line.unit_id)"></option>
+              </template>
+            </select>
+            <p class="hint" x-text="stockQtyText(line)"></p>
+          </div>
+          <input class="input input-sm num r" name="qty" x-model="line.qty" inputmode="decimal" aria-label="수량">
+          <input class="input input-sm num r" name="unit_price" x-model="line.unit_price" inputmode="decimal" aria-label="단가">
+          <span class="num r vl-amount" x-text="won(supply(line))"></span>
+          <select class="input input-sm" name="warehouse_id" x-model="line.warehouse_id" aria-label="창고">
+            {% for w in warehouses %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}
+          </select>
+          <button type="button" class="btn btn-grey btn-sm" @click="removeLine(idx)" aria-label="줄 삭제">삭제</button>
+          <input type="hidden" name="line_memo" :value="line.memo">
+        </div>
+      </template>
+      <button type="button" class="btn btn-weak btn-sm" style="align-self:flex-start" @click="lines.push({item: null, unit_id: '', qty: '', unit_price: '', warehouse_id: '', memo: ''})">+ 줄 추가</button>
+    </div>
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card">
+      <div class="field"><label for="memo">메모</label><textarea class="input" id="memo" name="memo" x-model="memo"></textarea></div>
+    </div>
+    <div class="card totals">
+      <div class="total-row"><span>공급가액</span><span class="num" x-text="won(supplyTotal) + '원'"></span></div>
+      <div class="total-row"><span>부가세</span><span class="num" x-text="won(vatTotal) + '원'"></span></div>
+      <div class="total-row total-sum"><span>합계</span><span class="num" x-text="won(supplyTotal + vatTotal) + '원'"></span></div>
+      <button class="btn btn-lg btn-block" style="margin-top:16px">{{ '저장하기' if voucher else '저장하고 ' ~ ('출고' if kind == 'sales' else '입고') }}</button>
+    </div>
+  </section>
+</form>
+<script src="{{ url_for('static', path='js/voucher.js') }}"></script>
+{% endblock %}

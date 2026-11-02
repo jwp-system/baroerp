@@ -1,0 +1,33 @@
+{% import "_macros.html" as m with context %}
+<p class="hint list-count">{{ page.total }}곳</p>
+{% if page.rows %}
+<div class="table-wrap">
+  <table class="table table-link">
+    <thead>
+      <tr><th>거래처명</th><th>구분</th><th>사업자번호</th><th>대표자</th><th>전화</th><th>사업자 상태</th><th class="r">결제조건</th></tr>
+    </thead>
+    <tbody>
+      {% for (p,) in page.rows %}
+      <tr onclick="location.href='/master/partners/{{ p.id }}'">
+        <td><a href="/master/partners/{{ p.id }}"><strong>{{ p.name }}</strong></a> {{ m.active_badge(p.is_active) }}</td>
+        <td><span class="badge {{ {'sales': 'badge-blue', 'purchase': 'badge-green', 'both': ''}[p.kind] }}">{{ p.kind_label }}</span></td>
+        <td class="num nowrap">{{ p.biz_no_display or '-' }}</td>
+        <td>{{ p.ceo_name or '' }}</td>
+        <td class="num nowrap">{{ p.phone or '' }}</td>
+        <td>
+          {% set st = {'active': 'badge-green', 'suspended': 'badge-yellow', 'closed': 'badge-red', 'unregistered': 'badge-red'} %}
+          {% if p.biz_no %}<span class="badge {{ st.get(p.biz_status, '') }}">{{ p.biz_status_label }}</span>{% endif %}
+        </td>
+        <td class="r">{{ p.payment_terms_days }}일</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ m.pager("/master/partners", f.params(), page, "#partner-table") }}
+{% else %}
+<div class="list-empty">
+  <p>조건에 맞는 거래처가 없어요</p>
+  <p class="hint">엑셀로 한 번에 올릴 수도 있어요 · <a class="link" href="/master/import">엑셀 일괄 등록</a></p>
+</div>
+{% endif %}

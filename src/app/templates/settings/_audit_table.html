@@ -1,0 +1,40 @@
+<p class="hint" style="margin:16px 0 8px">{{ total }}건</p>
+{% if rows %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr><th>일시</th><th>사용자</th><th>작업</th><th>대상</th><th>변경 내용</th></tr>
+    </thead>
+    <tbody>
+      {% for log, actor in rows %}
+      <tr>
+        <td class="num nowrap">{{ log.created_at | dt }}</td>
+        <td class="nowrap">{{ actor.name if actor else '시스템' }}</td>
+        <td>
+          <span class="badge {{ {'create': 'badge-blue', 'update': 'badge-yellow', 'delete': 'badge-red'}[log.action] }}">{{ action_labels[log.action] }}</span>
+        </td>
+        <td class="nowrap">{{ table_labels.get(log.target_table, log.target_table) }} #{{ log.target_id }}</td>
+        <td class="diff">
+          {% set keys = ((log.after or {}).keys() | list) or ((log.before or {}).keys() | list) %}
+          {% for k in keys %}
+          <div><span class="sub">{{ k }}</span>
+            {% if log.action == 'update' %}{{ log.before[k] }} → {% endif %}{{ (log.after or log.before)[k] }}</div>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if pages > 1 %}
+<nav class="pager">
+  {% for p in range(1, pages + 1) %}
+  <a href="?start={{ f.start }}&end={{ f.end }}&table={{ f.table }}&q={{ f.q | urlencode }}&page={{ p }}"
+     hx-get="/settings/audit?start={{ f.start }}&end={{ f.end }}&table={{ f.table }}&q={{ f.q | urlencode }}&page={{ p }}"
+     hx-target="#audit-table" hx-push-url="true" {% if p == f.page %}aria-current="page"{% endif %}>{{ p }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+{% else %}
+<p class="list-empty">이 기간에 기록이 없어요</p>
+{% endif %}

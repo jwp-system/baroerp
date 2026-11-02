@@ -1,0 +1,63 @@
+{% extends "funds/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ p.number }} · {{ settings.app_name }}{% endblock %}
+{% block sub %}
+{% if p.reversal_of_id %}<a class="link" href="/funds/{{ p.reversal_of_id }}">{{ p.reversal_of.number }}</a>을(를) 취소하는 건이에요
+{% elif p.status == 'pending' %}대표 승인을 기다리고 있어요. 승인 전에는 미지급금에 반영되지 않아요
+{% elif p.status == 'reversed' %}취소 건 {% if reversal %}<a class="link" href="/funds/{{ reversal.id }}">{{ reversal.number }}</a>{% endif %}으로 취소했어요
+{% elif p.status in ('canceled', 'rejected') %}{{ p.status_label }}된 건이라 잔액에 반영되지 않아요
+{% elif locked %}마감된 달의 건이라 취소하면 오늘 날짜로 취소 건을 만들어요
+{% else %}{{ p.kind_label }}을 전표에 배분했어요{% endif %}
+{% endblock %}
+{% block head_actions %}
+{% if not p.reversal_of_id %}
+  {% if p.status == 'pending' %}
+    {% if is_owner %}
+    <form method="post" action="/funds/{{ p.id }}/reject" onsubmit="return confirm('반려할까요?')">{{ m.csrf() }}<button class="btn btn-grey">반려</button></form>
+    {{ m.approve_form("/funds/%d/approve" % p.id, "승인하기") }}
+    {% endif %}
+    {% if can_cancel_pending %}
+    <form method="post" action="/funds/{{ p.id }}/cancel" onsubmit="return confirm('등록을 취소할까요?')">{{ m.csrf() }}<button class="btn btn-danger-weak">등록 취소</button></form>
+    {% endif %}
+  {% elif p.status == 'confirmed' %}
+  <form method="post" action="/funds/{{ p.id }}/cancel" onsubmit="return confirm('{{ p.kind_label }}을 취소할까요? 미{{ '수' if p.kind == 'receipt' else '지급' }}금이 다시 늘어요')">{{ m.csrf() }}<button class="btn btn-danger-weak">{{ '취소 건 만들기' if locked else '취소' }}</button></form>
+  {% endif %}
+{% endif %}
+{% endblock %}
+{% block funds %}
+<div class="stack">
+  <section class="card">
+    <div class="list">
+      <div class="list-row"><div class="main"><p class="desc">{{ p.kind_label }} 번호</p><p class="title num">{{ p.number }}</p></div><span class="badge">{{ p.status_label }}</span></div>
+      <div class="list-row"><div class="main"><p class="desc">일자</p><p class="title num">{{ p.payment_date }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">거래처</p><p class="title"><a class="link" href="/{{ 'receivables' if p.kind == 'receipt' else 'payables' }}/{{ p.partner_id }}">{{ p.partner.name }}</a></p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">금액</p><p class="title num"><strong>{{ p.amount | won }}원</strong> · {{ p.method_label }}{% if p.account_ref %} · {{ p.account_ref }}{% endif %}</p></div></div>
+      {% if p.approved_by %}<div class="list-row"><div class="main"><p class="desc">{{ '반려' if p.status == 'rejected' else '승인' }}</p><p class="title">{{ p.approved_by.name }} · {{ p.approved_at | dt }}</p></div></div>{% endif %}
+      {% if p.memo %}<div class="list-row"><div class="main"><p class="desc">메모</p><p class="title">{{ p.memo }}</p></div></div>{% endif %}
+    </div>
+  </section>
+  <section class="card">
+    <h2 class="card-title">전표 배분</h2>
+    {% if allocations %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>전표 일자</th><th>전표번호</th><th class="r">전표 합계</th><th class="r">배분 금액</th></tr></thead>
+        <tbody>
+          {% for a in allocations %}
+          <tr>
+            <td class="num">{{ a.voucher.voucher_date }}</td>
+            <td class="num"><a class="link" href="/{{ 'sales' if p.kind == 'receipt' else 'purchase' }}/{{ a.voucher_id }}">{{ a.voucher.number }}</a></td>
+            <td class="r">{{ a.voucher.total_amount | won }}</td>
+            <td class="r"><strong>{{ a.amount | won }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% set rest = p.amount - p.allocated %}
+    <p class="hint">{% if rest %}배분하지 않은 {{ rest | won }}원은 {{ '선수금' if p.kind == 'receipt' else '선급금' }}으로 남아 있어요{% elif not allocations %}배분한 전표가 없어요{% else %}금액 전부를 전표에 배분했어요{% endif %}</p>
+  </section>
+  <a href="/funds" class="btn btn-grey" style="align-self:flex-start">목록</a>
+</div>
+{% endblock %}

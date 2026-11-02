@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ voucher.number }} · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">{{ label }} 전표 <span class="num sub-title">{{ voucher.number }}</span></h1>
+    <p class="page-sub">
+      {% if voucher.reversal_of_id %}<a class="link" href="{{ prefix }}/{{ voucher.reversal_of_id }}">{{ voucher.reversal_of.number }}</a>을(를) 취소하는 전표예요
+      {% elif voucher.status == 'canceled' %}취소된 전표예요. 재고에 반영되지 않아요
+      {% elif voucher.status == 'reversed' %}취소 전표 {% if reversal %}<a class="link" href="{{ prefix }}/{{ reversal.id }}">{{ reversal.number }}</a>{% endif %}로 취소했어요
+      {% elif locked %}마감된 달의 전표라 고칠 수 없어요. 취소하면 오늘 날짜로 취소 전표를 만들어요
+      {% endif %}
+    </p>
+    {% if links and (links.paid or links.invoice) %}
+    <p class="page-sub">
+      {% if links.paid %}{{ links.paid_label }} <a class="link" href="{{ links.ledger }}/{{ voucher.partner_id }}">{{ links.paid | won }}원</a>{% if links.paid < voucher.total_amount %} · 남은 금액 {{ (voucher.total_amount - links.paid) | won }}원{% else %} · 완납{% endif %}{% endif %}
+      {% if links.paid and links.invoice %} · {% endif %}
+      {% if links.invoice %}세금계산서 <a class="link num" href="/tax-invoice/{{ links.invoice.id }}">{{ links.invoice.approval_no }}</a>{% endif %}
+    </p>
+    {% endif %}
+  </div>
+  <div class="head-actions">
+    {% if kind == 'sales' %}<a class="btn btn-weak" href="{{ prefix }}/{{ voucher.id }}/print" target="_blank">거래명세서</a>{% endif %}
+    {% if voucher.status == 'confirmed' and not voucher.reversal_of_id %}
+    <form method="post" action="{{ prefix }}/{{ voucher.id }}/cancel" onsubmit="return confirm('취소 전표를 만들까요?')">
+      {{ m.csrf() }}
+      <button class="btn btn-danger-weak">취소 전표 만들기</button>
+    </form>
+    {% endif %}
+  </div>
+</header>
+
+<div class="stack">
+  <section class="card">
+    <div class="list">
+      <div class="list-row"><div class="main"><p class="desc">일자</p><p class="title num">{{ voucher.voucher_date }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">거래처</p><p class="title">{{ voucher.partner.name }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">상태</p><p class="title">{{ voucher.status_label }}</p></div></div>
+      {% if voucher.memo %}<div class="list-row"><div class="main"><p class="desc">메모</p><p class="title">{{ voucher.memo }}</p></div></div>{% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>품목</th><th class="r">수량</th><th class="r">단가</th><th class="r">공급가액</th><th>창고</th></tr></thead>
+        <tbody>
+          {% for ln in voucher.lines %}
+          <tr>
+            <td>{{ ln.item.name }} <span class="sub num">{{ ln.item.code }}</span>{% if ln.tax_exempt %} <span class="badge">면세</span>{% endif %}</td>
+            <td class="r">{{ fmt_qty(ln.qty, 4) }}{{ ln.unit.name }}{% if ln.factor != 1 %}<br><span class="sub">{{ fmt_qty(ln.stock_qty, 4) }}{{ ln.item.stock_unit.name }}</span>{% endif %}</td>
+            <td class="r">{{ ln.unit_price | won }}</td>
+            <td class="r">{{ ln.supply_amount | won }}</td>
+            <td>{{ ln.warehouse.name }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="totals totals-inline">
+      <div class="total-row"><span>공급가액</span><span class="num">{{ voucher.supply_amount | won }}원</span></div>
+      <div class="total-row"><span>부가세</span><span class="num">{{ voucher.vat_amount | won }}원</span></div>
+      <div class="total-row total-sum"><span>합계</span><span class="num">{{ voucher.total_amount | won }}원</span></div>
+    </div>
+  </section>
+  <a href="{{ prefix }}" class="btn btn-grey" style="align-self:flex-start">목록</a>
+</div>
+{% endblock %}

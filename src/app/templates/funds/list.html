@@ -1,0 +1,28 @@
+{% extends "funds/_layout.html" %}
+{% block funds %}
+<section class="card">
+  <form class="filters" hx-get="/funds" hx-target="#payment-table" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:400ms from:input[name=q], submit">
+    <div class="field"><label for="start">시작일</label><input class="input input-sm" type="date" id="start" name="start" value="{{ f.start }}"></div>
+    <div class="field"><label for="end">종료일</label><input class="input input-sm" type="date" id="end" name="end" value="{{ f.end }}"></div>
+    <div class="field grow"><label for="q">검색</label><input class="input input-sm" id="q" name="q" value="{{ f.q }}" placeholder="거래처명 또는 번호"></div>
+    <div class="field">
+      <label for="kind">구분</label>
+      <select class="input input-sm" id="kind" name="kind">
+        <option value="">전체</option>
+        {% for value, label in kinds.items() %}<option value="{{ value }}" {% if f.kind == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="status">상태</label>
+      <select class="input input-sm" id="status" name="status">
+        <option value="">전체</option>
+        {% for value, label in statuses.items() %}<option value="{{ value }}" {% if f.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="button" class="btn btn-weak btn-sm"
+            onclick="location.href='/funds/export.xlsx?' + new URLSearchParams(new FormData(this.form))">엑셀 내보내기</button>
+  </form>
+  <div id="payment-table">{% include "funds/_table.html" %}</div>
+</section>
+{% endblock %}

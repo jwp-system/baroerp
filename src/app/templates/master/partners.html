@@ -1,0 +1,42 @@
+{% extends "master/_layout.html" %}
+{% block head_actions %}<a href="/master/partners/new" class="btn">거래처 등록</a>{% endblock %}
+{% block master %}
+<section class="card">
+  <form class="filters" hx-get="/master/partners" hx-target="#partner-table" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:400ms from:input[name=q], submit">
+    <div class="field grow">
+      <label for="q">검색</label>
+      <input class="input input-sm" id="q" name="q" value="{{ f.q }}" placeholder="거래처명 또는 사업자번호">
+    </div>
+    <div class="field">
+      <label for="kind">구분</label>
+      <select class="input input-sm" id="kind" name="kind">
+        <option value="">전체</option>
+        {% for value, label in kinds.items() if value != 'both' %}
+        <option value="{{ value }}" {% if f.kind == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="status">사업자 상태</label>
+      <select class="input input-sm" id="status" name="status">
+        <option value="">전체</option>
+        {% for value, label in statuses.items() %}
+        <option value="{{ value }}" {% if f.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="active">사용</label>
+      <select class="input input-sm" id="active" name="active">
+        <option value="1" {% if f.active == '1' %}selected{% endif %}>사용</option>
+        <option value="0" {% if f.active == '0' %}selected{% endif %}>사용 안 함</option>
+        <option value="" {% if f.active == '' %}selected{% endif %}>전체</option>
+      </select>
+    </div>
+    <button type="button" class="btn btn-weak btn-sm"
+            onclick="location.href='/master/partners/export.xlsx?' + new URLSearchParams(new FormData(this.form))">엑셀 내보내기</button>
+  </form>
+  <div id="partner-table">{% include "master/_partner_table.html" %}</div>
+</section>
+{% endblock %}

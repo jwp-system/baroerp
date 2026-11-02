@@ -1,0 +1,41 @@
+{% extends "tax_invoice/_layout.html" %}
+{% block head_actions %}<a class="btn btn-weak" href="/tax-invoice/targets.xlsx">엑셀 내보내기</a><a class="btn" href="https://www.hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a>{% endblock %}
+{% block tax %}
+<div class="stack">
+  <section class="grid grid-4">
+    <div class="card"><p class="stat-label">발행 대상</p><p class="stat-value num">{{ rows | length }}<small>건</small></p><p class="stat-delta">{{ total | won }}원</p></div>
+    <div class="card"><p class="stat-label">발급 기한 지남</p><p class="stat-value num {{ 'diff' if overdue }}">{{ overdue }}<small>건</small></p><p class="stat-delta">공급한 달의 다음 달 10일까지</p></div>
+  </section>
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title">아직 세금계산서와 대사되지 않은 매출 전표</h2>
+        <p class="hint">홈택스에서 발행한 뒤 '홈택스 업로드'에 발행 목록을 올리면 이 목록에서 빠져요. 사업자번호가 없는 거래처는 제외돼요</p>
+      </div>
+    </div>
+    {% if rows %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>작성일자</th><th>발급 기한</th><th>전표번호</th><th>공급받는자</th><th class="r">공급가액</th><th class="r">세액</th><th class="r">합계</th></tr></thead>
+        <tbody>
+          {% for v in rows %}
+          {% set due = deadline(v.voucher_date) %}
+          <tr>
+            <td class="num nowrap">{{ v.voucher_date }}</td>
+            <td class="num nowrap">{% if due < today %}<span class="badge badge-red">{{ due }} 지남</span>{% elif (due - today).days <= 5 %}<span class="badge badge-yellow">{{ due }}</span>{% else %}{{ due }}{% endif %}</td>
+            <td class="num nowrap"><a class="link" href="/sales/{{ v.id }}">{{ v.number }}</a></td>
+            <td>{{ v.partner.name }} <span class="sub num">{{ v.partner.biz_no_display }}</span></td>
+            <td class="r">{{ v.supply_amount | won }}</td>
+            <td class="r">{{ v.vat_amount | won }}</td>
+            <td class="r"><strong>{{ v.total_amount | won }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty"><p class="empty-title">발행할 세금계산서가 없어요</p><p class="empty-sub">모든 매출 전표가 세금계산서와 대사됐어요</p></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

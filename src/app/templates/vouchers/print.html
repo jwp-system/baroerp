@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>거래명세서 {{ voucher.number }}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/print.css') }}">
+</head>
+<body>
+  <div class="toolbar no-print">
+    <button onclick="window.print()">인쇄 · PDF 저장</button>
+  </div>
+  {% set b = business %}
+  {% set p = voucher.partner %}
+  <main class="sheet">
+    <h1>거래명세서{% if voucher.reversal_of_id %} <small>(취소)</small>{% endif %}</h1>
+    <div class="meta">
+      <span>일자 {{ voucher.voucher_date.strftime('%Y년 %m월 %d일') }}</span>
+      <span>번호 {{ voucher.number }}</span>
+    </div>
+    <div class="parties">
+      <table class="party">
+        <caption>공급받는자</caption>
+        <tr><th>상호</th><td colspan="3"><strong>{{ p.name }}</strong> 귀하</td></tr>
+        <tr><th>등록번호</th><td colspan="3">{{ p.biz_no_display or '-' }}</td></tr>
+        <tr><th>대표자</th><td>{{ p.ceo_name or '' }}</td><th>전화</th><td>{{ p.phone or '' }}</td></tr>
+        <tr><th>주소</th><td colspan="3">{{ p.address or '' }}</td></tr>
+      </table>
+      <table class="party">
+        <caption>공급자</caption>
+        <tr><th>등록번호</th><td colspan="3">{{ b.biz_no_display }}</td></tr>
+        <tr><th>상호</th><td>{{ b.name }}</td><th>대표자</th><td>{{ b.ceo_name or '' }}</td></tr>
+        <tr><th>주소</th><td colspan="3">{{ b.address or '' }}</td></tr>
+        <tr><th>업태</th><td>{{ b.biz_type or '' }}</td><th>종목</th><td>{{ b.biz_item or '' }}</td></tr>
+      </table>
+    </div>
+    <p class="grand">합계금액 <strong>{{ voucher.total_amount | won }}원</strong> <span>(공급가액 {{ voucher.supply_amount | won }} + 부가세 {{ voucher.vat_amount | won }})</span></p>
+    <table class="lines">
+      <thead>
+        <tr><th>No</th><th>품목</th><th>규격</th><th>수량</th><th>단위</th><th>단가</th><th>공급가액</th><th>비고</th></tr>
+      </thead>
+      <tbody>
+        {% for ln in voucher.lines %}
+        <tr>
+          <td class="c">{{ loop.index }}</td>
+          <td>{{ ln.item.name }}</td>
+          <td>{{ ln.item.spec or '' }}</td>
+          <td class="r">{{ fmt_qty(ln.qty, 4) }}</td>
+          <td class="c">{{ ln.unit.name }}</td>
+          <td class="r">{{ ln.unit_price | won }}</td>
+          <td class="r">{{ ln.supply_amount | won }}</td>
+          <td>{{ '면세' if ln.tax_exempt }}{{ ln.memo or '' }}</td>
+        </tr>
+        {% endfor %}
+        {% for _ in range([0, 10 - voucher.lines | length] | max) %}
+        <tr class="blank"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr><th colspan="6">공급가액</th><td class="r">{{ voucher.supply_amount | won }}</td><td></td></tr>
+        <tr><th colspan="6">부가세</th><td class="r">{{ voucher.vat_amount | won }}</td><td></td></tr>
+        <tr><th colspan="6">합계</th><td class="r"><strong>{{ voucher.total_amount | won }}</strong></td><td></td></tr>
+      </tfoot>
+    </table>
+    {% if voucher.memo %}<p class="memo">비고: {{ voucher.memo }}</p>{% endif %}
+    <p class="sign">인수자 ______________ (인)</p>
+  </main>
+</body>
+</html>

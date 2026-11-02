@@ -1,0 +1,70 @@
+{% extends "inventory/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block sub %}옮길 수량만 입력하세요. 비워 둔 품목은 옮기지 않아요{% endblock %}
+{% block inventory %}
+{{ m.error_box(error) }}
+{% if locked %}<p class="alert alert-error">{{ transfer_date.year }}년 {{ transfer_date.month }}월은 마감되어 창고 이동을 할 수 없어요</p>{% endif %}
+{% if src and dst %}
+<form method="post" action="/inventory/transfers" class="stack" @keydown.enter="if ($event.target.tagName === 'INPUT') $event.preventDefault()">
+  {{ m.csrf() }}
+  <section class="card">
+    <div class="field-row">
+      <div class="field">
+        <label for="from_warehouse_id">보내는 창고</label>
+        <select class="input" id="from_warehouse_id" name="from_warehouse_id"
+                onchange="location.href='/inventory/transfers/new?src=' + this.value + '&dst={{ dst.id }}&transfer_date={{ transfer_date }}'">
+          {% for w in warehouses %}<option value="{{ w.id }}" {% if w.id == src.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="to_warehouse_id">받는 창고</label>
+        <select class="input" id="to_warehouse_id" name="to_warehouse_id">
+          {% for w in warehouses if w.id != src.id %}<option value="{{ w.id }}" {% if w.id == dst.id %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="transfer_date">이동일</label>
+        <input class="input num" type="date" id="transfer_date" name="transfer_date" value="{{ transfer_date }}" required>
+      </div>
+    </div>
+  </section>
+  <section class="card">
+    <h2 class="card-title">{{ src.name }}의 재고</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>품목</th><th class="r">현재고</th><th class="r">가용 재고</th><th class="r">이동 수량</th></tr></thead>
+        <tbody>
+          {% for r in sheet %}
+          {% set dec = r.item.stock_unit.decimals %}
+          {% set u = r.item.stock_unit.name %}
+          <tr>
+            <td>{{ r.item.name }} <span class="sub num">{{ r.item.code }}</span></td>
+            <td class="r num nowrap">{{ fmt_qty(r.qty, dec) }}{{ u }}{% if r.pending %}<br><span class="sub">폐기 대기 {{ fmt_qty(r.pending, dec) }}{{ u }}</span>{% endif %}</td>
+            <td class="r num nowrap"><strong>{{ fmt_qty(r.available, dec) }}{{ u }}</strong></td>
+            <td class="r">
+              <input type="hidden" name="item_id" value="{{ r.item.id }}">
+              <div class="input-suffix" style="justify-content:flex-end">
+                <input class="input input-sm input-xs num" name="qty" inputmode="decimal" value="{{ form.get(r.item.id, '') }}" aria-label="{{ r.item.name }} 이동 수량">
+                <span>{{ u }}</span>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="list-empty">{{ src.name }}에 옮길 재고가 없어요</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="card">
+    <div class="field"><label for="memo">메모</label><input class="input" id="memo" name="memo" value="{{ memo }}" placeholder="예: 매장 진열분 보충"></div>
+    <div class="actions" style="margin-top:12px">
+      <a href="/inventory/transfers" class="btn btn-grey">취소</a>
+      <button class="btn" {% if locked or not sheet %}disabled{% endif %}>이동하기</button>
+    </div>
+  </section>
+</form>
+{% else %}
+<div class="card list-empty"><p>창고가 2곳 이상 있어야 옮길 수 있어요 · <a class="link" href="/master/warehouses">창고 추가</a></p></div>
+{% endif %}
+{% endblock %}

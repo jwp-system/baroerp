@@ -1,0 +1,25 @@
+# 바로ERP 데모: 이미지 빌드 → Artifact Registry → Cloud Run 배포
+# 수동 실행: gcloud builds submit --config cloudbuild.yaml
+# 자동 배포: deploy/gcp/setup.sh가 만든 트리거(main 브랜치 푸시)
+substitutions:
+  _REGION: us-central1
+  _REPO: baroerp
+  _SERVICE: baroerp-demo
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/app:${BUILD_ID}
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/app:${BUILD_ID}", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/app:${BUILD_ID}"]
+  # 환경 변수·비밀값·네트워크는 setup.sh에서 한 번 설정해 두고, 여기서는 이미지만 바꾼다
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/app:${BUILD_ID}
+      - --region=${_REGION}
+options:
+  logging: CLOUD_LOGGING_ONLY

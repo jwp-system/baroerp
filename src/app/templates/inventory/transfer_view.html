@@ -1,0 +1,47 @@
+{% extends "inventory/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ t.number }} · {{ settings.app_name }}{% endblock %}
+{% block sub %}
+{% if t.reversal_of_id %}<a class="link" href="/inventory/transfers/{{ t.reversal_of_id }}">{{ t.reversal_of.number }}</a>을(를) 취소하는 반대 방향 이동이에요
+{% elif t.status == 'reversed' %}반대 방향 이동 {% if reversal %}<a class="link" href="/inventory/transfers/{{ reversal.id }}">{{ reversal.number }}</a>{% endif %}로 취소했어요
+{% elif t.status == 'canceled' %}취소된 창고 이동이에요
+{% elif locked %}마감된 달의 이동이라 취소하면 오늘 날짜로 반대 방향 이동을 만들어요
+{% else %}{{ t.from_warehouse.name }}에서 {{ t.to_warehouse.name }}(으)로 옮겼어요{% endif %}
+{% endblock %}
+{% block head_actions %}
+{% if can_cancel %}
+<form method="post" action="/inventory/transfers/{{ t.id }}/cancel" onsubmit="return confirm('창고 이동을 취소할까요? 재고를 원래 창고로 되돌려요')">{{ m.csrf() }}<button class="btn btn-danger-weak">{{ '취소 전표 만들기' if locked else '이동 취소' }}</button></form>
+{% endif %}
+{% endblock %}
+{% block inventory %}
+<div class="stack">
+  <section class="card">
+    <div class="list">
+      <div class="list-row"><div class="main"><p class="desc">이동번호</p><p class="title num">{{ t.number }}</p></div><span class="badge">{{ t.status_label }}</span></div>
+      <div class="list-row"><div class="main"><p class="desc">이동일</p><p class="title num">{{ t.transfer_date }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">창고</p><p class="title">{{ t.from_warehouse.name }} → {{ t.to_warehouse.name }}</p></div></div>
+      <div class="list-row"><div class="main"><p class="desc">등록</p><p class="title">{{ t.created_by.name if t.created_by else '-' }} · {{ t.created_at | dt }}</p></div></div>
+      {% if t.memo %}<div class="list-row"><div class="main"><p class="desc">메모</p><p class="title">{{ t.memo }}</p></div></div>{% endif %}
+    </div>
+  </section>
+  <section class="card">
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>품목</th><th class="r">{{ t.from_warehouse.name }}</th><th class="r">{{ t.to_warehouse.name }}</th></tr></thead>
+        <tbody>
+          {% for ln in t.lines %}
+          {% set dec = ln.item.stock_unit.decimals %}
+          {% set u = ln.item.stock_unit.name %}
+          <tr>
+            <td>{{ ln.item.name }} <span class="sub num">{{ ln.item.code }}</span></td>
+            <td class="r num nowrap diff">−{{ fmt_qty(ln.qty, dec) }}{{ u }}</td>
+            <td class="r num nowrap">+{{ fmt_qty(ln.qty, dec) }}{{ u }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <a href="/inventory/transfers" class="btn btn-grey" style="align-self:flex-start">목록</a>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+<p class="hint list-count">{{ rows | length }}곳</p>
+{% if rows %}
+<div class="table-wrap">
+  <table class="table table-link">
+    <thead>
+      <tr>
+        <th>거래처</th>
+        {% for s in sides %}
+        <th class="r">이번 달 {{ labels[s].billed }}</th><th class="r">{{ labels[s].balance }}</th><th class="r">30일 넘은 연체</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr onclick="location.href='/partners/{{ r.partner.id }}'">
+        <td><a href="/partners/{{ r.partner.id }}"><strong>{{ r.partner.name }}</strong></a> <span class="sub">{{ r.partner.kind_label }}</span></td>
+        {% for s in sides %}
+        {% set x = r.side.get(s) %}
+        {% if x %}
+        <td class="r num">{{ x.month | won }}</td>
+        <td class="r num">{{ x.balance | won }}</td>
+        <td class="r num">{% if x.overdue_30 %}<span class="diff">{{ x.overdue_30 | won }}</span>{% else %}<span class="sub">-</span>{% endif %}</td>
+        {% else %}
+        <td class="r sub">-</td><td class="r sub">-</td><td class="r sub">-</td>
+        {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="list-empty">
+  <p>{{ '찾는 거래처가 없어요' if q else '이번 달 거래나 남은 잔액이 있는 거래처가 없어요' }}</p>
+</div>
+{% endif %}

@@ -1,0 +1,14 @@
+{% extends "auth/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}2단계 인증 · {{ settings.app_name }}{% endblock %}
+{% block auth %}
+<h1 class="auth-title">간편 비밀번호를 입력해 주세요</h1>
+<p class="auth-sub">직접 정한 숫자 6자리예요</p>
+{{ m.error_box(error) }}
+<form method="post" action="/login/pin" class="stack">
+  {{ m.csrf() }}
+  {{ m.pin_input("pin", autofocus=true) }}
+  <button class="btn btn-lg btn-block">확인</button>
+  <a href="/login" class="link-sub">다른 계정으로 로그인</a>
+</form>
+{% endblock %}

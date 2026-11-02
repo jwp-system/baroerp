@@ -1,0 +1,63 @@
+{% extends "master/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block master %}
+<div class="form-layout">
+  <section class="card">
+    <h2 class="card-title">단위</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>단위명</th><th>유형</th><th>기준 단위 환산</th><th>기호</th><th>소수 자릿수</th><th>사용</th><th></th></tr></thead>
+        <tbody>
+          {% for u in units %}
+          {% set fid = "unit-" ~ u.id %}
+          <tr>
+            <td><strong>{{ u.name }}</strong>{% if u.id in used %} <span class="badge">사용 중</span>{% endif %}</td>
+            <td>{{ u.kind_label }}</td>
+            <td class="num sub">{% if u.kind != 'count' %}1{{ u.name }} = {{ u.base_ratio | int if u.base_ratio == u.base_ratio | int else u.base_ratio }}{{ {'volume': 'mL', 'weight': 'g', 'length': 'm'}[u.kind] }}{% else %}-{% endif %}</td>
+            <td><input class="input input-sm input-xs" name="symbol" value="{{ u.symbol }}" form="{{ fid }}" aria-label="{{ u.name }} 기호" required></td>
+            <td>
+              <select class="input input-sm input-xs" name="decimals" form="{{ fid }}" aria-label="{{ u.name }} 소수 자릿수">
+                {% for n in range(0, 5) %}<option value="{{ n }}" {% if u.decimals == n %}selected{% endif %}>{{ n }}</option>{% endfor %}
+              </select>
+            </td>
+            <td><label class="switch"><input type="checkbox" name="is_active" value="true" form="{{ fid }}" aria-label="{{ u.name }} 사용" {% if u.is_active %}checked{% endif %}><span></span></label></td>
+            <td><form method="post" action="/master/units/{{ u.id }}" id="{{ fid }}">{{ m.csrf() }}<button class="btn btn-grey btn-sm">저장</button></form></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-top:12px">소수 자릿수가 1 이상이면 12.5kg처럼 소수 수량을 쓸 수 있어요</p>
+  </section>
+
+  <aside class="card side-card" x-data="{ kind: 'count' }">
+    <h2 class="card-title">단위 추가</h2>
+    <form method="post" action="/master/units" class="stack">
+      {{ m.csrf() }}
+      <div class="field-row">
+        <div class="field"><label for="u-name">단위명</label><input class="input" id="u-name" name="name" placeholder="예: 포대" required></div>
+        <div class="field"><label for="u-symbol">기호</label><input class="input" id="u-symbol" name="symbol" placeholder="예: 포" required></div>
+      </div>
+      <div class="field">
+        <label for="u-kind">유형</label>
+        <select class="input" id="u-kind" name="kind" x-model="kind">
+          {% for value, label in kinds.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field" x-show="kind !== 'count'">
+        <label for="u-ratio">기준 단위 환산</label>
+        <div class="input-suffix">
+          <input class="input num" id="u-ratio" name="base_ratio" type="number" min="0" step="any" value="1">
+          <span x-text="{volume: 'mL', weight: 'g', length: 'm'}[kind]"></span>
+        </div>
+        <p class="hint">예: 1t = 1,000,000g</p>
+      </div>
+      <div class="field">
+        <label for="u-dec">소수 자릿수</label>
+        <select class="input" id="u-dec" name="decimals">{% for n in range(0, 5) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select>
+      </div>
+      <button class="btn">추가하기</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

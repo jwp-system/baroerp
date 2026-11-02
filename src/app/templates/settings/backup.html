@@ -1,0 +1,62 @@
+{% extends "settings/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block settings %}
+<div class="form-layout" x-data="{ target: '' }">
+  <section class="card">
+    <div class="card-head">
+      <h2 class="card-title">백업 파일</h2>
+      <form method="post" action="/settings/backup">{{ m.csrf() }}<button class="btn btn-sm">지금 백업</button></form>
+    </div>
+    {% if error %}{{ m.error_box(error) }}{% endif %}
+    {% if files %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>파일</th><th>만든 시각</th><th class="r">크기</th><th></th></tr></thead>
+        <tbody>
+          {% for f in files %}
+          <tr>
+            <td class="num">{{ f.name }}{% if f.name.endswith('-before-restore.zip') %} <span class="badge">복원 직전</span>{% endif %}</td>
+            <td class="num nowrap sub">{{ f.updated | dt }}</td>
+            <td class="r num nowrap">{{ '{:,.0f}'.format(f.size / 1024) }}KB</td>
+            <td class="nowrap">
+              <a class="btn btn-grey btn-sm" href="/settings/backup/files/{{ f.name }}">내려받기</a>
+              <button type="button" class="btn btn-weak btn-sm" @click="target = '{{ f.name }}'; $nextTick(() => $refs.pw.focus())">복원</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="list-empty"><p>아직 백업이 없어요</p></div>
+    {% endif %}
+    <p class="hint" style="margin-top:12px">
+      매일 새벽 3시에 자동으로 백업하고 최근 {{ keep }}개를 보관해요. 전표·재고·자금·증빙 첨부가 모두 들어가요.
+      내려받은 파일은 외장 디스크나 NAS에도 복사해 두세요.
+    </p>
+  </section>
+
+  <aside class="card side-card">
+    <h2 class="card-title">복원</h2>
+    <form method="post" action="/settings/backup/restore" enctype="multipart/form-data" class="stack"
+          onsubmit="return confirm('지금 데이터가 모두 백업 시점으로 바뀌어요. 복원할까요?')">
+      {{ m.csrf() }}
+      <input type="hidden" name="name" :value="target">
+      <div class="field" x-show="target">
+        <span class="label">복원할 백업</span>
+        <p class="num"><strong x-text="target"></strong> <button type="button" class="link" @click="target = ''">다른 파일</button></p>
+      </div>
+      <div class="field" x-show="!target">
+        <label for="b-file">백업 파일 올리기</label>
+        <input class="input" id="b-file" name="file" type="file" accept=".zip">
+      </div>
+      <div class="field">
+        <label for="b-pw">내 비밀번호</label>
+        <input class="input" id="b-pw" name="password" type="password" autocomplete="current-password" required x-ref="pw">
+      </div>
+      <p class="hint">복원 직전 상태를 자동으로 백업해 두고, 복원이 끝나면 다시 로그인해요. 백업할 때와 같은 버전·암호화 키에서만 복원할 수 있어요</p>
+      <button class="btn btn-danger-weak">복원하기</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

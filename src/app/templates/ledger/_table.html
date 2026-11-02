@@ -1,0 +1,26 @@
+<p class="hint list-count">{{ rows | length }}곳 · 연체 일수는 전표 일자 + 거래처 결제조건 기준이에요</p>
+{% if rows %}
+<div class="table-wrap">
+  <table class="table table-link">
+    <thead>
+      <tr><th>거래처</th><th class="r">{{ labels.balance }}</th>
+        {% for key, label in buckets %}<th class="r">{{ label }}</th>{% endfor %}
+        <th class="r">최장 연체</th></tr>
+    </thead>
+    <tbody>
+      {% for b in rows %}
+      <tr onclick="location.href='{{ prefix }}/{{ b.partner.id }}'">
+        <td><a href="{{ prefix }}/{{ b.partner.id }}"><strong>{{ b.partner.name }}</strong></a> <span class="sub num">{{ b.partner.biz_no_display }}</span></td>
+        <td class="r"><strong class="{{ 'diff' if b.balance < 0 }}">{{ b.balance | won }}</strong>{% if b.balance < 0 %}<br><span class="sub">{{ labels.advance }}</span>{% endif %}</td>
+        {% for key, label in buckets %}
+        <td class="r {{ 'diff' if key in ('d60', 'd90', 'over') and b.buckets[key] }}">{{ b.buckets[key] | won if b.buckets[key] else '' }}</td>
+        {% endfor %}
+        <td class="r nowrap">{% if b.max_overdue > 0 and b.balance > 0 %}<span class="badge {{ 'badge-red' if b.max_overdue > 30 else 'badge-yellow' }}">{{ b.max_overdue }}일</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="list-empty"><p>{{ labels.balance }}이 있는 거래처가 없어요</p></div>
+{% endif %}

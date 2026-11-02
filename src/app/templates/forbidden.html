@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}권한 없음 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<div class="card empty">
+  <p class="empty-title">이 화면을 볼 권한이 없어요</p>
+  <p class="empty-sub">필요하면 대표님께 메뉴 권한을 요청해 주세요</p>
+  <a href="/" class="btn btn-weak" style="margin-top:16px">처음으로</a>
+</div>
+{% endblock %}

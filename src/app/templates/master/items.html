@@ -1,0 +1,33 @@
+{% extends "master/_layout.html" %}
+{% block head_actions %}<a href="/master/items/new" class="btn">품목 등록</a>{% endblock %}
+{% block master %}
+<section class="card">
+  <form class="filters" hx-get="/master/items" hx-target="#item-table" hx-push-url="true"
+        hx-trigger="change, keyup changed delay:400ms from:input[name=q], submit">
+    <div class="field grow">
+      <label for="q">검색</label>
+      <input class="input input-sm" id="q" name="q" value="{{ f.q }}" placeholder="품목명 또는 식별코드">
+    </div>
+    <div class="field">
+      <label for="group">품목그룹</label>
+      <select class="input input-sm" id="group" name="group">
+        <option value="">전체</option>
+        {% for g, depth in groups %}
+        <option value="{{ g.id }}" {% if f.group == g.id %}selected{% endif %}>{{ '　' * depth }}{{ g.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="active">사용</label>
+      <select class="input input-sm" id="active" name="active">
+        <option value="1" {% if f.active == '1' %}selected{% endif %}>사용</option>
+        <option value="0" {% if f.active == '0' %}selected{% endif %}>사용 안 함</option>
+        <option value="" {% if f.active == '' %}selected{% endif %}>전체</option>
+      </select>
+    </div>
+    <button type="button" class="btn btn-weak btn-sm"
+            onclick="location.href='/master/items/export.xlsx?' + new URLSearchParams(new FormData(this.form))">엑셀 내보내기</button>
+  </form>
+  <div id="item-table">{% include "master/_item_table.html" %}</div>
+</section>
+{% endblock %}

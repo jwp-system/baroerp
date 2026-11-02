@@ -1,0 +1,36 @@
+{% extends "master/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block master %}
+<div class="form-layout">
+  <section class="card">
+    <h2 class="card-title">창고 {{ warehouses | length }}곳</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>창고명</th><th>주소</th><th>기본</th><th>사용</th><th></th></tr></thead>
+        <tbody>
+          {% for w in warehouses %}
+          {% set fid = "wh-" ~ w.id %}
+          <tr>
+            <td><input class="input input-sm" name="name" value="{{ w.name }}" form="{{ fid }}" aria-label="창고명" required></td>
+            <td><input class="input input-sm" name="address" value="{{ w.address or '' }}" form="{{ fid }}" aria-label="{{ w.name }} 주소"></td>
+            <td><input type="checkbox" class="checkbox" name="is_default" value="true" form="{{ fid }}" aria-label="{{ w.name }} 기본 창고" {% if w.is_default %}checked{% endif %}></td>
+            <td><label class="switch"><input type="checkbox" name="is_active" value="true" form="{{ fid }}" aria-label="{{ w.name }} 사용" {% if w.is_active %}checked{% endif %}><span></span></label></td>
+            <td><form method="post" action="/master/warehouses/{{ w.id }}" id="{{ fid }}">{{ m.csrf() }}<button class="btn btn-grey btn-sm">저장</button></form></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-top:12px">전표에서 창고를 고르지 않으면 기본 창고로 들어가요</p>
+  </section>
+  <aside class="card side-card">
+    <h2 class="card-title">창고 추가</h2>
+    <form method="post" action="/master/warehouses" class="stack">
+      {{ m.csrf() }}
+      <div class="field"><label for="w-name">창고명</label><input class="input" id="w-name" name="name" required></div>
+      <div class="field"><label for="w-addr">주소</label><input class="input" id="w-addr" name="address"></div>
+      <button class="btn">추가하기</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

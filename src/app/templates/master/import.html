@@ -1,0 +1,56 @@
+{% extends "master/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block master %}
+<div class="stack">
+  {% if result %}
+  <section class="card result-card {{ 'result-ok' if result.ok else 'result-error' }}">
+    {% if result.ok %}
+    <p class="empty-title">{{ result_label }} {{ result.created + result.updated }}건을 올렸어요</p>
+    <p class="empty-sub">새로 등록 {{ result.created }}건 · 수정 {{ result.updated }}건{% if result.partner_ids %} · 사업자 상태는 잠시 후 자동으로 조회돼요{% endif %}</p>
+    <a class="btn btn-weak btn-sm" style="margin-top:12px" href="/master/{{ result_kind }}">{{ result_label }} 목록 보기</a>
+    {% else %}
+    <p class="empty-title">고칠 곳이 {{ result.errors | length }}군데 있어요</p>
+    <p class="empty-sub">{{ filename }} · 한 행이라도 오류가 있으면 아무것도 저장하지 않아요. 고쳐서 다시 올려 주세요</p>
+    <div class="table-wrap" style="margin-top:16px">
+      <table class="table">
+        <thead><tr><th>행</th><th>내용</th></tr></thead>
+        <tbody>
+          {% for line, message in result.errors[:200] %}
+          <tr><td class="num nowrap">{{ line if line else '-' }}</td><td>{{ message }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="grid grid-2">
+    {% for kind, (label, columns, _) in imports.items() %}
+    <div class="card">
+      <h2 class="card-title">{{ label }} 일괄 등록</h2>
+      <ol class="steps">
+        <li><a class="link" href="/master/import/{{ kind }}/template.xlsx">양식 내려받기</a></li>
+        <li>한 행에 하나씩 채우기 · 필수: {% for name, req, _ in columns if req %}{{ name }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
+        <li>파일 올리기</li>
+      </ol>
+      <p class="hint">
+        {% if kind == 'partners' %}
+        사업자번호가 같은 거래처는 새로 만들지 않고 내용을 고쳐요. 구분은 매출·매입·공통 중 하나로 적어요.
+        {% else %}
+        식별코드가 같은 품목은 내용을 고치고, 비우면 자동으로 부여해요. 품목그룹은 식별코드나 '상품 &gt; 음료 &gt; 생수'처럼 경로로 적으면 없는 그룹은 만들어 드려요.
+        {% endif %}
+      </p>
+      <form method="post" action="/master/import/{{ kind }}" enctype="multipart/form-data" class="upload" x-data="{ name: '' }">
+        {{ m.csrf() }}
+        <label class="dropzone">
+          <input type="file" name="file" accept=".xlsx" required @change="name = $event.target.files[0]?.name || ''">
+          <span x-text="name || '여기를 눌러 .xlsx 파일 선택'"></span>
+        </label>
+        <button class="btn btn-block" :disabled="!name">올리기</button>
+      </form>
+    </div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

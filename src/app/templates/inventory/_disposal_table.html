@@ -1,0 +1,34 @@
+{% import "_macros.html" as m with context %}
+<p class="hint list-count">{{ page.total }}건</p>
+{% if page.rows %}
+<div class="table-wrap">
+  <table class="table table-link">
+    <thead><tr><th>일자</th><th>폐기번호</th><th>품목</th><th>창고</th><th class="r">수량</th><th>사유</th><th class="r">손실 금액</th><th>상태</th></tr></thead>
+    <tbody>
+      {% for (d,) in page.rows %}
+      <tr onclick="location.href='/inventory/disposals/{{ d.id }}'" class="{{ 'row-muted' if d.status == 'canceled' }}">
+        <td class="num nowrap">{{ d.disposal_date }}</td>
+        <td class="num nowrap"><a href="/inventory/disposals/{{ d.id }}">{{ d.number }}</a></td>
+        <td>{{ d.item.name }}</td>
+        <td>{{ d.warehouse.name }}</td>
+        <td class="r nowrap">{{ fmt_qty(d.qty, d.item.stock_unit.decimals) }}{{ d.item.stock_unit.name }}</td>
+        <td>{{ d.reason_label }}</td>
+        <td class="r">{% if d.status in ('approved', 'reversed') %}{{ d.loss_amount | won }}{% else %}<span class="sub">-</span>{% endif %}</td>
+        <td>
+          {% if d.reversal_of_id %}<span class="badge badge-red">취소 전표</span>
+          {% elif d.status == 'pending' %}<span class="badge badge-yellow">승인 대기</span>
+          {% elif d.status == 'approved' %}<span class="badge badge-blue">승인</span>
+          {% else %}<span class="badge">{{ d.status_label }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ m.pager("/inventory/disposals", f.params(), page, "#disposal-table") }}
+{% else %}
+<div class="list-empty">
+  <p>이 기간에 폐기가 없어요</p>
+  <a href="/inventory/disposals/new" class="btn btn-weak btn-sm" style="margin-top:12px">폐기 등록</a>
+</div>
+{% endif %}

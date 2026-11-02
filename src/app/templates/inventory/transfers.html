@@ -1,0 +1,50 @@
+{% extends "inventory/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block sub %}창고 사이에 재고를 옮겨요. 보내는 창고는 줄고 받는 창고는 늘며, 원가·분개는 생기지 않아요{% endblock %}
+{% block inventory %}
+<div class="form-layout">
+  <section class="card">
+    <h2 class="card-title">창고 이동 {{ page.total }}건</h2>
+    {% if page.rows %}
+    <div class="table-wrap">
+      <table class="table table-link">
+        <thead><tr><th>이동일</th><th>이동번호</th><th>보내는 창고 → 받는 창고</th><th>품목</th><th>상태</th></tr></thead>
+        <tbody>
+          {% for (t,) in page.rows %}
+          <tr onclick="location.href='/inventory/transfers/{{ t.id }}'" class="{{ 'row-muted' if t.status == 'canceled' }}">
+            <td class="num nowrap">{{ t.transfer_date }}</td>
+            <td class="num nowrap"><a href="/inventory/transfers/{{ t.id }}">{{ t.number }}</a></td>
+            <td>{{ t.from_warehouse.name }} → {{ t.to_warehouse.name }}</td>
+            <td class="sub">{% if t.lines %}{{ t.lines[0].item.name }}{% if t.lines | length > 1 %} 외 {{ t.lines | length - 1 }}건{% endif %}{% endif %}</td>
+            <td>{% if t.reversal_of_id %}<span class="badge badge-red">취소 전표</span>{% elif t.status == 'confirmed' %}<span class="badge badge-blue">확정</span>{% else %}<span class="badge">{{ t.status_label }}</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ m.pager("/inventory/transfers", {}, page, "body") }}
+    {% else %}
+    <div class="list-empty"><p>아직 창고 이동이 없어요</p></div>
+    {% endif %}
+  </section>
+  <aside class="card side-card">
+    <h2 class="card-title">이동 시작</h2>
+    {% if warehouses | length < 2 %}
+    <p class="hint">창고가 2곳 이상 있어야 옮길 수 있어요 · <a class="link" href="/master/warehouses">창고 추가</a></p>
+    {% else %}
+    <form method="get" action="/inventory/transfers/new" class="stack">
+      <div class="field">
+        <label for="t-src">보내는 창고</label>
+        <select class="input" id="t-src" name="src">{% for w in warehouses %}<option value="{{ w.id }}">{{ w.name }}</option>{% endfor %}</select>
+      </div>
+      <div class="field">
+        <label for="t-dst">받는 창고</label>
+        <select class="input" id="t-dst" name="dst">{% for w in warehouses %}<option value="{{ w.id }}" {% if loop.index == 2 %}selected{% endif %}>{{ w.name }}</option>{% endfor %}</select>
+      </div>
+      <div class="field"><label for="t-date">이동일</label><input class="input num" type="date" id="t-date" name="transfer_date" value="{{ today }}"></div>
+      <button class="btn">이동표 열기</button>
+    </form>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

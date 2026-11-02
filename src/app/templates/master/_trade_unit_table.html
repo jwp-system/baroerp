@@ -1,0 +1,37 @@
+{% import "_macros.html" as m with context %}
+{# 검색 조건: 일괄 적용 폼(#tu-form)이 '검색 결과 전체'와 되돌아갈 목록에 쓴다 #}
+{% for k, v in f.params().items() %}<input type="hidden" name="{{ k }}" value="{{ v }}" form="tu-form">{% endfor %}
+<p class="hint list-count">{{ page.total }}개</p>
+{% if page.rows %}
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th><input type="checkbox" class="checkbox" aria-label="이 페이지 전체 선택"
+                   onchange="document.querySelectorAll('#tu-table input[name=item_id]').forEach((c) => (c.checked = this.checked))"></th>
+        <th>식별코드</th><th>품목명</th><th>품목그룹</th><th>재고 단위</th><th>거래 단위 환산</th><th>기본 단위</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for (i,) in page.rows %}
+      {% set pu = i.units | selectattr('unit_id', 'equalto', i.purchase_unit_id) | first %}
+      {% set su = i.units | selectattr('unit_id', 'equalto', i.sale_unit_id) | first %}
+      <tr>
+        <td><input type="checkbox" class="checkbox" name="item_id" value="{{ i.id }}" form="tu-form" aria-label="{{ i.name }} 선택"></td>
+        <td class="num nowrap">{{ i.code }}</td>
+        <td><a class="link" href="/master/items/{{ i.id }}"><strong>{{ i.name }}</strong></a>{% if i.spec %} <span class="sub">{{ i.spec }}</span>{% endif %} {{ m.active_badge(i.is_active) }}</td>
+        <td class="sub">{{ path(i.group) }}</td>
+        <td>{{ i.stock_unit.name }}</td>
+        <td class="nowrap">
+          {% for u in i.units %}<span class="badge{% if f.unit == u.unit_id %} badge-blue{% endif %}">1{{ u.unit.name }} = {{ fmt_qty(u.factor, 4) }}{{ i.stock_unit.name }}</span> {% else %}<span class="sub">-</span>{% endfor %}
+        </td>
+        <td class="sub nowrap">매입 {{ pu.unit.name if pu else i.stock_unit.name }} · 매출 {{ su.unit.name if su else i.stock_unit.name }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{{ m.pager("/master/trade-units", f.params(), page, "#tu-table") }}
+{% else %}
+<div class="list-empty"><p>조건에 맞는 품목이 없어요</p></div>
+{% endif %}

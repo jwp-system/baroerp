@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ partner.name }} 원장 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">{{ partner.name }} <span class="sub-title num">{{ partner.biz_no_display }}</span></h1>
+    <p class="page-sub">{{ labels.billed }} 전표는 더하고 {{ labels.paid }}은 빼서 잔액을 쌓아요 · 결제조건 {{ partner.payment_terms_days }}일</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn btn-grey" href="{{ prefix }}">목록</a>
+    {% if 'partners' in allowed %}<a class="btn btn-weak" href="/partners/{{ partner.id }}">상황판</a>{% endif %}
+    <a class="btn" href="/funds/new?kind={{ kind }}&partner_id={{ partner.id }}">{{ labels.paid }} 등록</a>
+  </div>
+</header>
+<div class="stack">
+  <section class="grid grid-4">
+    <div class="card"><p class="stat-label">현재 {{ labels.balance }}</p><p class="stat-value num">{{ closing_balance | won }}<small>원</small></p><p class="stat-delta">{{ end }} 기준</p></div>
+    <div class="card"><p class="stat-label">기초 잔액</p><p class="stat-value num">{{ opening | won }}<small>원</small></p><p class="stat-delta">{{ start }} 이전</p></div>
+    <div class="card"><p class="stat-label">미결 전표</p><p class="stat-value num">{{ open | length }}<small>건</small></p></div>
+    {% if other %}
+    <div class="card"><p class="stat-label">반대편 {{ '미지급금' if kind == 'receipt' else '미수금' }}</p><p class="stat-value num">{{ other.balance | won }}<small>원</small></p>
+      <p class="stat-delta">공통 거래처 · 상계 후 {{ (closing_balance - other.balance) | won }}원</p></div>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <form class="filters" method="get">
+      <div class="field"><label for="start">시작일</label><input class="input input-sm" type="date" id="start" name="start" value="{{ start }}"></div>
+      <div class="field"><label for="end">종료일</label><input class="input input-sm" type="date" id="end" name="end" value="{{ end }}"></div>
+      <button class="btn btn-weak btn-sm">조회</button>
+    </form>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>일자</th><th>구분</th><th>번호</th><th class="r">{{ labels.billed }}</th><th class="r">{{ labels.paid }}</th><th class="r">잔액</th></tr></thead>
+        <tbody>
+          <tr class="row-muted"><td class="num">{{ start }}</td><td colspan="4">기초 잔액</td><td class="r">{{ opening | won }}</td></tr>
+          {% for r in rows %}
+          <tr>
+            <td class="num nowrap">{{ r.when }}</td>
+            {% if r.kind == 'voucher' %}
+            <td>{{ labels.billed }} 전표{% if r.obj.reversal_of_id %} <span class="badge badge-red">취소</span>{% endif %}</td>
+            <td class="num"><a class="link" href="{{ labels.voucher_prefix }}/{{ r.obj.id }}">{{ r.obj.number }}</a></td>
+            <td class="r">{{ r.increase | won }}</td><td></td>
+            {% else %}
+            <td>{{ labels.paid }} · {{ r.obj.method_label }}{% if r.obj.reversal_of_id %} <span class="badge badge-red">취소</span>{% endif %}</td>
+            <td class="num"><a class="link" href="/funds/{{ r.obj.id }}">{{ r.obj.number }}</a></td>
+            <td></td><td class="r">{{ r.decrease | won }}</td>
+            {% endif %}
+            <td class="r"><strong>{{ r.balance | won }}</strong></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="list-empty">이 기간에 거래가 없어요</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if open %}
+  <section class="card">
+    <h2 class="card-title">미결 전표</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>전표 일자</th><th>전표번호</th><th>결제 예정일</th><th class="r">전표 합계</th><th class="r">남은 금액</th><th class="r">연체</th></tr></thead>
+        <tbody>
+          {% for v, rest in open %}
+          {% set due = due_date(v) %}
+          {% set days = (today - due).days %}
+          <tr>
+            <td class="num">{{ v.voucher_date }}</td>
+            <td class="num"><a class="link" href="{{ labels.voucher_prefix }}/{{ v.id }}">{{ v.number }}</a></td>
+            <td class="num">{{ due }}</td>
+            <td class="r">{{ v.total_amount | won }}</td>
+            <td class="r"><strong>{{ rest | won }}</strong></td>
+            <td class="r">{% if days > 0 %}<span class="badge {{ 'badge-red' if days > 30 else 'badge-yellow' }}">{{ days }}일</span>{% else %}<span class="sub">D{{ days if days else '-day' }}</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

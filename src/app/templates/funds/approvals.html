@@ -1,0 +1,30 @@
+{% extends "funds/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block sub %}{{ threshold | won }}원 이상 지급은 대표가 승인해야 미지급금에 반영돼요{% endblock %}
+{% block funds %}
+<section class="card">
+  {% if rows %}
+  <div class="list">
+    {% for p in rows %}
+    <div class="list-row">
+      <a class="main" href="/funds/{{ p.id }}">
+        <p class="title">{{ p.partner.name }} <strong class="num">{{ p.amount | won }}원</strong></p>
+        <p class="desc num">{{ p.payment_date }} · {{ p.number }} · {{ p.method_label }}{% if p.account_ref %} · {{ p.account_ref }}{% endif %} · {{ p.created_by.name if p.created_by else '' }} 등록</p>
+      </a>
+      {% if can_approve %}
+      <form method="post" action="/funds/{{ p.id }}/reject" onsubmit="return confirm('반려할까요?')">{{ m.csrf() }}<button class="btn btn-grey btn-sm">반려</button></form>
+      {{ m.approve_form("/funds/%d/approve" % p.id, small=true) }}
+      {% else %}
+      <span class="badge badge-yellow">대표 승인 대기</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <p class="empty-title">승인할 지급이 없어요</p>
+    <p class="empty-sub">기준금액은 설정 &gt; 사업장에서 바꿀 수 있어요</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

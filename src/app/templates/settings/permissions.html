@@ -1,0 +1,43 @@
+{% extends "settings/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block settings %}
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2 class="card-title">역할별 메뉴 권한</h2>
+      <p class="hint">대표는 항상 모든 메뉴를 쓸 수 있어요</p>
+    </div>
+    <form method="post" action="/settings/permissions/reset">
+      {{ m.csrf() }}
+      <button class="btn btn-grey btn-sm">기본값으로</button>
+    </form>
+  </div>
+  <form method="post" action="/settings/permissions">
+    {{ m.csrf() }}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>역할</th>
+            {% for key, label, _ in menus %}<th class="c">{{ label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for role in roles %}
+          <tr>
+            <td><strong>{{ role_labels[role] }}</strong></td>
+            {% for key, label, _ in menus %}
+            <td class="c">
+              <input type="checkbox" class="checkbox" name="{{ role.value }}:{{ key }}" value="1"
+                     aria-label="{{ role_labels[role] }} {{ label }}" {% if key in matrix[role] %}checked{% endif %}>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="actions"><button class="btn">저장하기</button></div>
+  </form>
+</section>
+{% endblock %}

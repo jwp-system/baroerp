@@ -1,0 +1,50 @@
+{% extends "inventory/_layout.html" %}
+{% block sub %}팔 수 없게 된 재고는 폐기로 처리해요. 승인하면 재고에서 빠지고 손실로 분개돼요{% endblock %}
+{% block head_actions %}<a class="btn" href="/inventory/disposals/new">폐기 등록</a>{% endblock %}
+{% block inventory %}
+<div class="stack">
+  <section class="grid grid-4">
+    <div class="card">
+      <p class="stat-label">기간 폐기 손실</p>
+      <p class="stat-value num">{{ loss | won }}<small>원</small></p>
+      <p class="stat-delta">{{ f.start }} ~ {{ f.end }}</p>
+    </div>
+    {% for value, label in reasons.items() if by_reason.get(value) %}
+    <div class="card">
+      <p class="stat-label">{{ label }}</p>
+      <p class="stat-value num">{{ by_reason[value] | won }}<small>원</small></p>
+    </div>
+    {% endfor %}
+    <a class="card" href="/inventory/disposals?status=pending&start=2000-01-01">
+      <p class="stat-label">승인 대기</p>
+      <p class="stat-value num">{{ pending }}<small>건</small></p>
+      <p class="stat-delta">기간과 관계없이 전체</p>
+    </a>
+  </section>
+  <section class="card">
+    <form class="filters" hx-get="/inventory/disposals" hx-target="#disposal-table" hx-push-url="true"
+          hx-trigger="change, keyup changed delay:400ms from:input[name=q], submit">
+      <div class="field"><label for="start">시작일</label><input class="input input-sm" type="date" id="start" name="start" value="{{ f.start }}"></div>
+      <div class="field"><label for="end">종료일</label><input class="input input-sm" type="date" id="end" name="end" value="{{ f.end }}"></div>
+      <div class="field grow"><label for="q">검색</label><input class="input input-sm" id="q" name="q" value="{{ f.q }}" placeholder="품목명 또는 폐기번호"></div>
+      <div class="field">
+        <label for="reason">사유</label>
+        <select class="input input-sm" id="reason" name="reason">
+          <option value="">전체</option>
+          {% for value, label in reasons.items() %}<option value="{{ value }}" {% if f.reason == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="status">상태</label>
+        <select class="input input-sm" id="status" name="status">
+          <option value="">전체</option>
+          {% for value, label in statuses.items() %}<option value="{{ value }}" {% if f.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <button type="button" class="btn btn-weak btn-sm"
+              onclick="location.href='/inventory/disposals/export.xlsx?' + new URLSearchParams(new FormData(this.form))">엑셀 내보내기</button>
+    </form>
+    <div id="disposal-table">{% include "inventory/_disposal_table.html" %}</div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}자금 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">자금</h1>
+    <p class="page-sub">{% block sub %}수금·지급을 전표에 배분하면 미수금·미지급금이 바로 줄어요{% endblock %}</p>
+  </div>
+  <div class="head-actions">
+    {% block head_actions %}
+    <a class="btn btn-weak" href="/funds/new?kind=disbursement">지급 등록</a>
+    <a class="btn" href="/funds/new?kind=receipt">수금 등록</a>
+    {% endblock %}
+  </div>
+</header>
+{% set tab_items = [] %}
+{% for key, label, href in tabs %}{% set _ = tab_items.append((key, label ~ (' ' ~ pending if key == 'approvals' and pending else ''), href)) %}{% endfor %}
+{{ m.tab_nav(tab_items, tab) }}
+{% block funds %}{% endblock %}
+{% endblock %}

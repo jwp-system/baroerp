@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{{ partner.name }} 상황판 · {{ settings.app_name }}{% endblock %}
+{% block content %}
+{% macro delta(diff) %}
+{% if diff > 0 %}<p class="stat-delta up">지난달 같은 기간보다 {{ diff | won }}원 늘었어요</p>
+{% elif diff < 0 %}<p class="stat-delta down">지난달 같은 기간보다 {{ (-diff) | won }}원 줄었어요</p>
+{% else %}<p class="stat-delta">지난달 같은 기간과 같아요</p>{% endif %}
+{% endmacro %}
+{# 권한 없는 메뉴로 가는 줄은 링크 없이 보여 준다 #}
+{% macro row(href, menu) %}{% if menu in allowed %}<a class="list-row" href="{{ href }}">{{ caller() }}</a>{% else %}<div class="list-row">{{ caller() }}</div>{% endif %}{% endmacro %}
+<header class="page-head page-head-row">
+  <div>
+    <h1 class="page-title">{{ partner.name }} <span class="sub-title num">{{ partner.biz_no_display }}</span></h1>
+    <p class="page-sub">{{ partner.kind_label }} 거래처 · 결제조건 {{ partner.payment_terms_days }}일{% if partner.ceo_name %} · 대표 {{ partner.ceo_name }}{% endif %}</p>
+  </div>
+  <div class="head-actions">
+    <a class="btn btn-grey" href="/partners">목록</a>
+    {% for s in sides if labels[s.kind].menu in allowed %}
+    <a class="btn btn-weak" href="{{ labels[s.kind].ledger }}/{{ partner.id }}">{{ labels[s.kind].balance }} 원장</a>
+    {% endfor %}
+  </div>
+</header>
+
+<div class="stack">
+  <section class="grid grid-4">
+    {% for s in sides %}
+    {% set l = labels[s.kind] %}
+    <div class="card">
+      <p class="stat-label">이번 달 {{ l.billed }}</p>
+      <p class="stat-value num">{{ s.now | won }}<small>원</small></p>
+      {{ delta(s.now - s.prev) }}
+    </div>
+    <div class="card">
+      <p class="stat-label">{{ l.balance }}</p>
+      <p class="stat-value num">{{ (s.balance.balance if s.balance else 0) | won }}<small>원</small></p>
+      {% if s.balance and s.balance.overdue_30 %}
+      <p class="stat-delta down">30일 넘은 연체 {{ s.balance.overdue_30 | won }}원 · 최장 {{ s.balance.max_overdue }}일</p>
+      {% elif s.open_count %}
+      <p class="stat-delta">미결 전표 {{ s.open_count }}건</p>
+      {% else %}
+      <p class="stat-delta">남은 {{ l.balance }}이 없어요</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="grid grid-2">
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">처리할 일</h2></div>
+      <div class="list">
+        {% for s in sides %}
+        {% set l = labels[s.kind] %}
+        {% call row(l.ledger ~ "/" ~ partner.id, l.menu) %}
+          <div class="main"><p class="title">이번 주 {{ l.paid }} 예정</p><p class="desc">결제 예정일이 일요일까지인 {{ l.balance }}(지난 것 포함)</p></div>
+          <span class="value num">{{ s.due_week | won }}원</span>
+        {% endcall %}
+        {% endfor %}
+        {% if 'payments' in pending %}
+        {% call row("/funds/approvals", "funds") %}
+          <div class="main"><p class="title">승인 대기 지급</p><p class="desc">대표 승인이 필요해요</p></div>
+          <span class="badge {{ 'badge-red' if pending.payments else '' }}">{{ pending.payments }}건</span>
+        {% endcall %}
+        {% endif %}
+        {% if 'unissued' in pending %}
+        {% call row("/tax-invoice", "tax_invoice") %}
+          <div class="main"><p class="title">세금계산서 발급 대상</p><p class="desc">아직 세금계산서와 대사되지 않은 매출 전표</p></div>
+          <span class="badge {{ 'badge-yellow' if pending.unissued else '' }}">{{ pending.unissued }}건</span>
+        {% endcall %}
+        {% endif %}
+        {% if 'unmatched' in pending %}
+        {% call row("/tax-invoice/list?matched=0&start=2000-01-01", "tax_invoice") %}
+          <div class="main"><p class="title">대사 안 된 세금계산서</p><p class="desc">맞는 전표를 찾지 못했어요</p></div>
+          <span class="badge {{ 'badge-red' if pending.unmatched else '' }}">{{ pending.unmatched }}건</span>
+        {% endcall %}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">최근 6개월 거래</h2></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>월</th>{% for s in sides %}<th class="r">{{ labels[s.kind].billed }}(공급가)</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for m in trend | reverse %}
+            <tr>
+              <td class="num">{{ m.month }}</td>
+              {% for s in sides %}<td class="r num">{% if m[s.kind] %}{{ m[s.kind] | won }}{% else %}<span class="sub">-</span>{% endif %}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid grid-2">
+    {% for s in sides %}
+    {% set l = labels[s.kind] %}
+    <div class="card">
+      <div class="card-head"><h2 class="card-title">많이 {{ l.billed }}한 품목</h2><p class="hint">최근 3개월</p></div>
+      <div class="list">
+        {% for item, qty, amount in top[s.kind] %}
+        <div class="list-row">
+          <div class="main"><p class="title">{{ item.name }}</p><p class="desc num">{{ fmt_qty(qty, item.stock_unit.decimals) }}{{ item.stock_unit.name }}</p></div>
+          <span class="value num">{{ amount | won }}원</span>
+        </div>
+        {% else %}
+        <p class="list-empty">최근 3개월 {{ l.billed }}이 없어요</p>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="card">
+      <div class="card-head"><h2 class="card-title">최근 거래</h2></div>
+      <div class="list">
+        {% for when, obj in recent %}
+        {% if obj.__tablename__ == 'voucher' %}
+        {% set l = labels['receipt' if obj.kind == 'sales' else 'disbursement'] %}
+        {% call row(l.voucher ~ "/" ~ obj.id, l.voucher_menu) %}
+          <div class="main"><p class="title">{{ l.billed }} 전표 <span class="sub num">{{ obj.number }}</span>{% if obj.reversal_of_id %} <span class="badge badge-red">취소</span>{% endif %}</p><p class="desc num">{{ when }} · {{ obj.status_label }}</p></div>
+          <span class="value num">{{ obj.total_amount | won }}원</span>
+        {% endcall %}
+        {% else %}
+        {% set l = labels[obj.kind] %}
+        {% call row("/funds/" ~ obj.id, "funds") %}
+          <div class="main"><p class="title">{{ l.paid }} · {{ obj.method_label }} <span class="sub num">{{ obj.number }}</span>{% if obj.status == 'pending' %} <span class="badge badge-yellow">승인 대기</span>{% endif %}</p><p class="desc num">{{ when }}</p></div>
+          <span class="value num">{{ obj.amount | won }}원</span>
+        {% endcall %}
+        {% endif %}
+        {% else %}
+        <p class="list-empty">거래가 없어요</p>
+        {% endfor %}
+      </div>
+  </section>
+</div>
+{% endblock %}

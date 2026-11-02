@@ -1,0 +1,72 @@
+{% extends "inventory/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block sub %}등록하면 '승인 대기'로 격리되고, 대표·경리가 승인하면 재고에서 빠져요{% endblock %}
+{% block inventory %}
+<div class="form-layout">
+  <section class="card">
+    <h2 class="card-title">폐기 등록</h2>
+    {{ m.error_box(error) }}
+    <form method="post" action="/inventory/disposals" enctype="multipart/form-data" class="stack" x-data="{ names: [] }">
+      {{ m.csrf() }}
+      <div class="field-row">
+        <div class="field">
+          <label for="disposal_date">폐기일</label>
+          <input class="input num" type="date" id="disposal_date" name="disposal_date" value="{{ form.disposal_date }}" required>
+        </div>
+        <div class="field">
+          <label for="warehouse_id">창고</label>
+          <select class="input" id="warehouse_id" name="warehouse_id">
+            {% for w in warehouses %}<option value="{{ w.id }}" {% if form.warehouse_id | string == w.id | string %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="item_id">품목</label>
+        <select class="input" id="item_id" name="item_id" required>
+          <option value="">품목을 골라 주세요</option>
+          {% for i in items %}<option value="{{ i.id }}" {% if form.item_id | string == i.id | string %}selected{% endif %}>{{ i.name }} ({{ i.code }}) · {{ i.stock_unit.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="qty">수량(재고 단위)</label>
+          <input class="input num" id="qty" name="qty" inputmode="decimal" value="{{ form.qty or '' }}" required>
+        </div>
+        <div class="field">
+          <label>사유</label>
+          <div class="segmented">
+            {% for value, label in reasons.items() %}
+            <label><input type="radio" name="reason" value="{{ value }}" {% if (form.reason or 'damaged') == value %}checked{% endif %}><span>{{ label }}</span></label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="memo">메모</label>
+        <input class="input" id="memo" name="memo" value="{{ form.memo or '' }}" placeholder="예: 운송 중 박스 파손">
+      </div>
+      <div class="field">
+        <label>증빙(사진·폐기 확인서·영수증)</label>
+        <label class="dropzone">
+          <input type="file" name="files" multiple accept="image/*,application/pdf" capture="environment"
+                 @change="names = [...$event.target.files].map(f => f.name)">
+          <span x-text="names.length ? names.join(', ') : '여기를 눌러 사진이나 PDF 선택 (10MB까지)'"></span>
+        </label>
+      </div>
+      <div class="actions">
+        <a href="/inventory/disposals" class="btn btn-grey">취소</a>
+        <button class="btn">등록하기</button>
+      </div>
+    </form>
+  </section>
+  <aside class="card side-card">
+    <h2 class="card-title">이렇게 처리돼요</h2>
+    <ol class="steps">
+      <li>등록 → 폐기 대기(격리). 가용 재고에서 빠져요</li>
+      <li>승인 → 재고에서 차감, 손실 금액 = 수량 × 이동평균 단가</li>
+      <li>자동 분개: (차) 재고자산폐기손실 / (대) 상품</li>
+    </ol>
+    <p class="hint">세금계산서와 부가세는 생기지 않아요. 증빙은 손금 인정 근거로 5년 보관돼요</p>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "settings/_layout.html" %}
+{% import "_macros.html" as m with context %}
+{% block settings %}
+<section class="card form-narrow">
+  <form method="post" action="/settings" class="stack">
+    {{ m.csrf() }}
+    <div class="field-row">
+      <div class="field">
+        <label>사업자번호</label>
+        <input class="input num" value="{{ business.biz_no_display }}" disabled>
+        <p class="hint">사업자번호는 바꿀 수 없어요</p>
+      </div>
+      <div class="field">
+        <label for="name">상호</label>
+        <input class="input" id="name" name="name" value="{{ business.name }}" required>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="ceo_name">대표자</label><input class="input" id="ceo_name" name="ceo_name" value="{{ business.ceo_name or '' }}"></div>
+      <div class="field"><label for="phone">전화</label><input class="input num" id="phone" name="phone" value="{{ business.phone or '' }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="biz_type">업태</label><input class="input" id="biz_type" name="biz_type" value="{{ business.biz_type or '' }}"></div>
+      <div class="field"><label for="biz_item">종목</label><input class="input" id="biz_item" name="biz_item" value="{{ business.biz_item or '' }}"></div>
+    </div>
+    <div class="field"><label for="address">주소</label><input class="input" id="address" name="address" value="{{ business.address or '' }}"></div>
+    <p class="hint">대표자·주소·업태·종목은 거래명세서의 공급자 정보로 찍혀요</p>
+
+    <h3 class="section-label">회계·업무</h3>
+    <div class="field-row">
+      <div class="field">
+        <label for="tax_type">과세 유형</label>
+        <select class="input" id="tax_type" name="tax_type">
+          {% for value, label in tax_types.items() %}
+          <option value="{{ value }}" {% if business.tax_type == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="fiscal_end_month">결산월</label>
+        <select class="input" id="fiscal_end_month" name="fiscal_end_month">
+          {% for mth in range(1, 13) %}
+          <option value="{{ mth }}" {% if business.fiscal_end_month == mth %}selected{% endif %}>{{ mth }}월</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="threshold">지급 승인 기준금액</label>
+      <div class="input-suffix">
+        <input class="input num" id="threshold" name="payment_approval_threshold" type="number" min="0" step="10000" value="{{ business.payment_approval_threshold }}" required>
+        <span>원</span>
+      </div>
+      <p class="hint">이 금액 이상 지급은 대표 승인이 필요해요</p>
+    </div>
+    <label class="switch-row">
+      <span>재고보다 많이 출고해도 저장하기<br><span class="hint">끄면 재고가 모자랄 때 매출 전표를 저장하지 않아요</span></span>
+      <span class="switch"><input type="checkbox" name="allow_negative_stock" value="true" {% if business.allow_negative_stock %}checked{% endif %}><span></span></span>
+    </label>
+    <label class="switch-row">
+      <span>폐기 손실을 매출원가에 넣기<br><span class="hint">끄면 재고자산폐기손실 계정으로 분개해요. 정상 범위 폐기의 처리 기준은 세무대리인과 정하세요</span></span>
+      <span class="switch"><input type="checkbox" name="disposal_to_cogs" value="true" {% if business.disposal_to_cogs %}checked{% endif %}><span></span></span>
+    </label>
+    <button class="btn">저장하기</button>
+  </form>
+</section>
+{% endblock %}
