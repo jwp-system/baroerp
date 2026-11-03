@@ -2,8 +2,10 @@
 
     uv run python -m app.demo files [폴더]
         시연용 엑셀: 거래처·품목·홈택스 세금계산서(매출·매입)
-    uv run python -m app.demo seed --email 이메일 --password 비밀번호
-        빈 DB에 데모 사업장 + 최근 3개월 거래 이력
+    uv run python -m app.demo seed [--months 3]
+        빈 DB에 데모 사업장 + 데모 계정(DEMO_ACCOUNTS) + 최근 3개월 거래 이력
+    uv run python -m app.demo reset
+        모든 데이터를 지우고 처음 상태로 다시 채움(데모 사이트는 매일 새벽 4시 자동)
 
 시연 금액은 SCENARIO에 고정해 두고, 세금계산서 파일이 그 금액·사업자번호와 맞도록 만든다.
 """
@@ -11,7 +13,6 @@
 import argparse
 import io
 import random
-import sys
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -23,6 +24,7 @@ from sqlalchemy.orm import Session
 from app.models import Business, Item, Partner, Role, User, Warehouse
 from app.models.finance import PaymentKind, PaymentMethod, PaymentStatus
 from app.models.inventory import DisposalReason
+from app.models.user import ROLE_LABELS
 from app.models.voucher import VoucherKind
 from app.security import hash_password
 from app.services import closing, inventory, payments
@@ -32,6 +34,16 @@ from app.services.voucher import LineInput, save_voucher
 from app.timeutil import today
 
 BUSINESS = {"name": "바로상사", "biz_no": "1234567815"}
+
+# 데모 사이트 계정(소개 페이지에 공개). 대표는 간편 비밀번호도 정해 둔다
+DEMO_PASSWORD = "12345678"
+DEMO_PIN = "142536"
+DEMO_ACCOUNTS = {  # 키: 소개 페이지의 '둘러보기' 주소(/demo/enter/<키>)
+    "owner": ("박사장", "demo1@example.com", Role.OWNER),
+    "sales": ("김과장", "demo2@example.com", Role.SALES),
+    "purchasing": ("장대리", "demo3@example.com", Role.PURCHASING),
+    "accountant": ("강부장", "demo4@example.com", Role.ACCOUNTANT),
+}
 
 # (거래처명, 구분, 사업자번호, 대표자, 업태, 종목, 결제조건(일))
 PARTNERS = [
@@ -110,16 +122,8 @@ HOMETAX_HEADER = ["작성일자", "승인번호", "발급일자", "공급자사�
                   "대표자명", "합계금액", "공급가액", "세액", "품목명"]  # fmt: skip
 
 
-def hometax_xlsx(direction: str, d: date) -> bytes:
-    """시나리오 매출(direction='sales')·매입('purchase') 전표와 맞는 세금계산서 1건."""
-    s = SCENARIO["sale" if direction == "sales" else "purchase"]
-    supply = s["qty"] * s["unit_price"]
-    vat = supply // 10
-    partner = next(p for p in PARTNERS if p[0] == s["partner"])
-    us = (BUSINESS["biz_no"], BUSINESS["name"], "대표")
-    them = (partner[2], partner[0], partner[3])
-    supplier, buyer = (us, them) if direction == "sales" else (them, us)
-    no = f"{d:%Y%m%d}{'4100' if direction == 'sales' else '4200'}0000{d:%d}01"
+def _hometax_book(direction: str, rows: list[list]) -> bytes:
+    """홈택스 '전자(세금)계산서 목록' 엑셀 모양(제목·빈 줄·머리글·행)"""
     wb = Workbook()
     ws = wb.active
     ws.append(
@@ -127,11 +131,54 @@ def hometax_xlsx(direction: str, d: date) -> bytes:
     )
     ws.append([])
     ws.append(HOMETAX_HEADER)
-    ws.append([d.isoformat(), no, d.isoformat(), supplier[0], "", supplier[1], supplier[2],
-               buyer[0], "", buyer[1], buyer[2], supply + vat, supply, vat, s["item"]])  # fmt: skip
+    for row in rows:
+        ws.append(row)
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def _hometax_row(direction, d, no, us, them, supply, vat, item) -> list:
+    supplier, buyer = (us, them) if direction == "sales" else (them, us)
+    return [d.isoformat(), no, d.isoformat(), supplier[0], "", supplier[1], supplier[2],
+            buyer[0], "", buyer[1], buyer[2], supply + vat, supply, vat, item]  # fmt: skip
+
+
+def hometax_xlsx(direction: str, d: date) -> bytes:
+    """시나리오 매출(direction='sales')·매입('purchase') 전표와 맞는 세금계산서 1건."""
+    s = SCENARIO["sale" if direction == "sales" else "purchase"]
+    supply = s["qty"] * s["unit_price"]
+    partner = next(p for p in PARTNERS if p[0] == s["partner"])
+    us = (BUSINESS["biz_no"], BUSINESS["name"], "대표")
+    them = (partner[2], partner[0], partner[3])
+    no = f"{d:%Y%m%d}{'4100' if direction == 'sales' else '4200'}0000{d:%d}01"
+    return _hometax_book(direction, [_hometax_row(direction, d, no, us, them, supply,
+                                                  supply // 10, s["item"])])  # fmt: skip
+
+
+def hometax_last_month_xlsx(db: Session, business: Business, direction: str) -> bytes:
+    """데모 DB의 지난달 전표로 만든 거래처별 월합계 세금계산서(올리면 전표와 자동 대사).
+    데모 사이트 소개 페이지의 '세금계산서 대사' 체험용."""
+    from app.services.tax_invoice import unmatched_vouchers
+
+    end = today().replace(day=1) - timedelta(days=1)
+    start = end.replace(day=1)
+    groups: dict[int, list] = {}
+    for v in unmatched_vouchers(db, business.id, direction):
+        if start <= v.voucher_date <= end and v.partner.biz_no:
+            groups.setdefault(v.partner_id, []).append(v)
+    owner = next(n for n, _, r in DEMO_ACCOUNTS.values() if r == Role.OWNER)
+    us = (business.biz_no, business.name, owner)
+    rows = []
+    for vouchers in groups.values():
+        partner = vouchers[0].partner
+        them = (partner.biz_no, partner.name, partner.ceo_name or "")
+        supply = int(sum(v.supply_amount for v in vouchers))
+        vat = int(sum(v.vat_amount for v in vouchers))
+        no = f"{end:%Y%m%d}{'4100' if direction == 'sales' else '4200'}{partner.id:08d}"
+        item = f"{len(vouchers)}건 월합계"
+        rows.append(_hometax_row(direction, end, no, us, them, supply, vat, item))
+    return _hometax_book(direction, rows)
 
 
 def write_files(folder: Path, d: date | None = None) -> list[Path]:
@@ -154,19 +201,29 @@ def write_files(folder: Path, d: date | None = None) -> list[Path]:
 # ---------- 거래 이력 ----------
 
 
-def seed(db: Session, email: str, password: str, months: int = 3, rnd_seed: int = 42) -> Business:
-    """빈 DB에 데모 사업장을 만들고 최근 몇 달의 매입·매출·수금·지급·폐기를 채운다.
-    지난달 이전은 마감해 둔다(이번 달·지난달은 열어 둠)."""
+def seed(db: Session, months: int = 3, rnd_seed: int = 42) -> Business:
+    """빈 DB에 데모 사업장·계정을 만들고 최근 몇 달의 매입·매출·수금·지급·폐기를 채운다.
+    지난달 이전은 마감해 둔다(이번 달·지난달은 열어 둠). 체험용으로 대표 승인을 기다리는
+    지급과 폐기를 하나씩 남긴다."""
     if db.scalar(select(Business.id).limit(1)) is not None:
         raise SystemExit("이미 사업장이 있어요. 빈 DB에서 실행해 주세요")
     business = Business(name=BUSINESS["name"], biz_no=BUSINESS["biz_no"])
     db.add(business)
     db.flush()
     seed_business_defaults(db, business)
-    owner = User(business_id=business.id, email=email.strip().lower(), name="대표",
-                 password_hash=hash_password(password), role=Role.OWNER)  # fmt: skip
-    db.add(owner)
+    password_hash = hash_password(DEMO_PASSWORD)  # scrypt는 느리므로 한 번만
+    users = {
+        key: User(
+            business_id=business.id, email=email, name=name, role=role, password_hash=password_hash
+        )  # fmt: skip
+        for key, (name, email, role) in DEMO_ACCOUNTS.items()
+    }
+    users["owner"].pin_hash = hash_password(DEMO_PIN)
+    db.add_all(users.values())
     db.flush()
+    owner, buyer, seller, accountant = (
+        users[k] for k in ("owner", "purchasing", "sales", "accountant")
+    )
     db.info["user_id"] = owner.id
     for result in (
         import_partners(db, business, io.BytesIO(partners_xlsx())),
@@ -205,7 +262,7 @@ def seed(db: Session, email: str, password: str, months: int = 3, rnd_seed: int 
                     price = item.purchase_price * factor
                     lines.append(LineInput(item.id, unit_id, qty, price))
                     stock[item.id] += qty * factor
-                save_voucher(db, business, owner, VoucherKind.PURCHASE, None, d, supplier.id, lines)
+                save_voucher(db, business, buyer, VoucherKind.PURCHASE, None, d, supplier.id, lines)
         if d.weekday() < 6:  # 월~토 판매
             for customer in rnd.sample(customers, rnd.choice([1, 2])):
                 lines = []
@@ -218,14 +275,14 @@ def seed(db: Session, email: str, password: str, months: int = 3, rnd_seed: int 
                     lines.append(LineInput(item.id, unit_id, qty, price))
                     stock[item.id] -= qty * factor
                 if lines:
-                    save_voucher(db, business, owner, VoucherKind.SALES, None, d, customer.id,
+                    save_voucher(db, business, seller, VoucherKind.SALES, None, d, customer.id,
                                  lines)  # fmt: skip
         if d.day == 25:  # 매달 25일: 한 달 전까지의 외상 정리
-            _settle(db, business, owner, d, rnd)
+            _settle(db, business, accountant, owner, d, rnd)
         if d.day == 20 and stock[items[0].id] >= 5:  # 매달 파손 폐기 1건
             wh = db.scalar(select(Warehouse).where(Warehouse.business_id == business.id,
                                                    Warehouse.is_default))  # fmt: skip
-            disposal = inventory.create_disposal(db, business, owner, d, items[0].id, wh.id,
+            disposal = inventory.create_disposal(db, business, buyer, d, items[0].id, wh.id,
                                                  Decimal(rnd.randint(2, 5)), DisposalReason.DAMAGED,
                                                  "운송 중 파손")  # fmt: skip
             inventory.approve_disposal(db, business, owner, disposal)
@@ -238,11 +295,38 @@ def seed(db: Session, email: str, password: str, months: int = 3, rnd_seed: int 
     while m < last_open:
         closing.close_month(db, business.id, closing.year_month(m), owner.id)
         m = (m + timedelta(days=32)).replace(day=1)
+
+    # 체험용 승인 대기: 기준금액 이상 지급(관리 등록) 1건, 파손 폐기(구매 등록) 1건
+    payables = payments.balances(db, business.id, PaymentKind.DISBURSEMENT, end)
+    top = max(payables, key=lambda b: b.balance, default=None)
+    if top is not None and top.balance >= business.payment_approval_threshold:
+        payments.save_payment(db, business, accountant, PaymentKind.DISBURSEMENT, end,
+                              top.partner.id, top.balance, PaymentMethod.TRANSFER,
+                              memo="이번 달 대금 지급")  # fmt: skip
+    wh = db.scalar(select(Warehouse).where(Warehouse.business_id == business.id,
+                                           Warehouse.is_default))  # fmt: skip
+    if stock[items[1].id] >= 3:
+        inventory.create_disposal(db, business, buyer, end, items[1].id, wh.id, Decimal(3),
+                                  DisposalReason.DAMAGED, "입고 중 파손")  # fmt: skip
     db.commit()
     return business
 
 
-def _settle(db: Session, business: Business, owner: User, d: date, rnd: random.Random) -> None:
+def reset(months: int = 3) -> Business:
+    """데모 사이트를 처음 상태로: 모든 테이블을 비우고 다시 채운다(DB 버전 정보는 유지)."""
+    from app.db import SessionLocal, engine
+    from app.models import Base
+
+    with engine.begin() as conn:
+        for t in reversed(Base.metadata.sorted_tables):
+            conn.execute(t.delete())
+    with SessionLocal() as db:
+        return seed(db, months)
+
+
+def _settle(
+    db: Session, business: Business, accountant: User, owner: User, d: date, rnd: random.Random
+) -> None:
     cutoff = d - timedelta(days=30)
     for kind in (PaymentKind.RECEIPT, PaymentKind.DISBURSEMENT):
         totals: dict[int, Decimal] = {}
@@ -252,7 +336,7 @@ def _settle(db: Session, business: Business, owner: User, d: date, rnd: random.R
         for partner_id, amount in totals.items():
             if rnd.random() < 0.15:  # 일부는 연체로 남겨 에이징에 보이게
                 continue
-            p = payments.save_payment(db, business, owner, kind, d, partner_id, amount,
+            p = payments.save_payment(db, business, accountant, kind, d, partner_id, amount,
                                       PaymentMethod.TRANSFER, memo="월말 정산")  # fmt: skip
             if p.status == PaymentStatus.PENDING:
                 payments.approve_payment(db, business, owner, p)
@@ -264,24 +348,26 @@ def main(argv: list[str] | None = None) -> None:
     f = sub.add_parser("files", help="시연용 엑셀 파일 만들기")
     f.add_argument("folder", nargs="?", default="data/demo")
     f.add_argument("--date", type=date.fromisoformat, help="세금계산서 작성일자(기본 오늘)")
-    s = sub.add_parser("seed", help="빈 DB에 데모 사업장과 거래 이력 채우기")
-    s.add_argument("--email", required=True)
-    s.add_argument("--password", required=True)
-    s.add_argument("--months", type=int, default=3)
+    for name, help_text in (("seed", "빈 DB에 데모 사업장·계정·거래 이력 채우기"),
+                            ("reset", "모든 데이터를 지우고 처음 상태로 다시 채우기")):  # fmt: skip
+        sub.add_parser(name, help=help_text).add_argument("--months", type=int, default=3)
     args = parser.parse_args(argv)
 
     if args.cmd == "files":
         for path in write_files(Path(args.folder), args.date):
             print(path)
         return
-    if len(args.password) < 8:
-        sys.exit("비밀번호는 8자 이상이어야 해요")
-    from app.db import SessionLocal
+    if args.cmd == "reset":
+        business = reset(args.months)
+    else:
+        from app.db import SessionLocal
 
-    with SessionLocal() as db:
-        business = seed(db, args.email, args.password, args.months)
-        print(f"'{business.name}' 데모 사업장을 만들었어요. {args.email}로 로그인하세요")
-        print("처음 로그인하면 간편 비밀번호(숫자 6자리)부터 등록해요")
+        with SessionLocal() as db:
+            business = seed(db, args.months)
+    print(f"'{business.name}' 데모 사업장을 만들었어요. 계정(비밀번호 {DEMO_PASSWORD}):")
+    for name, email, role in DEMO_ACCOUNTS.values():
+        print(f"  {name} {email} ({ROLE_LABELS[role]})")
+    print(f"  대표 간편 비밀번호 {DEMO_PIN}")
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ from fastapi import Depends, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
 from app.models import Business, Role, User
 from app.permissions import allowed_menus
@@ -69,6 +70,18 @@ def login(request: Request, db: Session, user: User) -> None:
     db.commit()
 
 
+DEMO_LOCKED = "데모에서는 바꿀 수 없어요. 여러 방문자가 같은 계정을 함께 써요"
+
+
+def demo_locked(request: Request) -> bool:
+    """데모 사이트는 공용 계정이라 비밀번호·간편 비밀번호·사용자·권한·복원을 막는다
+    (한 방문자가 바꾸면 다른 방문자가 들어올 수 없게 되므로). 막았으면 안내를 남긴다."""
+    if not get_settings().demo_mode:
+        return False
+    request.session.setdefault("flash", []).append({"message": DEMO_LOCKED, "kind": "error"})
+    return True
+
+
 def logout(request: Request) -> None:
     request.session.clear()
 
@@ -81,6 +94,9 @@ def get_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> User:
             request.session.clear()
         if db.scalar(select(Business.id).limit(1)) is None:
             raise Redirect("/setup")
+        # 데모 사이트는 첫 화면이 제품 소개(로그인 없이 역할별로 둘러보기)
+        if get_settings().demo_mode and request.url.path == "/":
+            raise Redirect("/intro")
         raise Redirect("/login")
 
     # 대표(관리자)는 2단계 인증(간편 비밀번호) 필수

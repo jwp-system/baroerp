@@ -128,7 +128,7 @@ def test_demo_scenario(client, db):
 
 
 def test_demo_seed_builds_history(db):
-    business = demo.seed(db, "owner@demo.kr", PASSWORD, months=2)
+    business = demo.seed(db, months=2)
     sales = db.scalars(select(Voucher).where(Voucher.kind == "sales")).all()
     assert len(sales) > 20
     # 재고가 음수가 되지 않는다

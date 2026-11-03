@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -13,6 +13,7 @@ from app.routers import (
     auth,
     funds,
     health,
+    intro,
     inventory,
     ledger,
     master,
@@ -34,6 +35,14 @@ async def lifespan(_app: FastAPI):
         start_scheduler()
     yield
     stop_scheduler()
+
+
+def _icon(name: str):
+    def handler() -> FileResponse:
+        headers = {"Cache-Control": "public, max-age=604800"}
+        return FileResponse(BASE_DIR / "static" / "img" / name, headers=headers)
+
+    return handler
 
 
 def _redirect_handler(request: Request, exc: Redirect) -> Response:
@@ -65,9 +74,13 @@ def create_app() -> FastAPI:
     app.add_exception_handler(Redirect, _redirect_handler)
     app.add_exception_handler(Forbidden, _forbidden_handler)
     app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+    # 브라우저·검색 로봇이 사이트 루트에서 바로 찾는 아이콘
+    for name in ("favicon.ico", "apple-touch-icon.png"):
+        app.add_api_route(f"/{name}", _icon(name), include_in_schema=False)
     app.include_router(health.router)
     app.include_router(tasks.router)
     app.include_router(auth.router)
+    app.include_router(intro.router)
     app.include_router(settings.router)
     app.include_router(master.router)
     app.include_router(vouchers.sales_router)

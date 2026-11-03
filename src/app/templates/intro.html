@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}바로ERP - 매입·매출·재고·채권 장부를 한 곳에서, 바로{% endblock %}
+{% block head %}
+<meta name="description" content="직원 50인 이하 사업장을 위한 매입·매출·재고·채권 관리. 가입 없이 대표·영업·구매·관리 화면을 바로 둘러보세요.">
+<link rel="stylesheet" href="{{ url_for('static', path='css/intro.css') }}">
+{% endblock %}
+{% block body %}
+{% set icons = {
+  "voucher": '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  "box": '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+  "swap": '<path d="M7 4 3 8l4 4"/><path d="M3 8h13a4 4 0 0 1 4 4"/><path d="m17 20 4-4-4-4"/><path d="M21 16H8a4 4 0 0 1-4-4"/>',
+  "trash": '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  "receipt": '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  "users": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>',
+  "shield": '<path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+} %}
+{% macro icon(name) %}<span class="in-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{ icons[name] | safe }}</svg></span>{% endmacro %}
+<div class="in">
+  <div class="in-demo-bar"><b>데모</b>가짜 데이터로 둘러보는 버전이에요 · 매일 새벽 4시에 처음 상태로 돌아가요 · 세금계산서는 실제로 발행되지 않아요</div>
+
+  <header class="in-header">
+    <div class="in-wrap">
+      <a class="in-brand" href="/intro">바로<span>ERP</span></a>
+      <nav class="in-nav" aria-label="소개 페이지 목차">
+        <a href="#flow">업무 흐름</a><a href="#features">기능</a><a href="#try">체험</a>
+        <a href="#accounts">데모 계정</a><a href="#start">도입 방법</a><a href="#faq">FAQ</a>
+        <a href="{{ contact_url }}" target="_blank" rel="noopener">도입 문의</a>
+      </nav>
+      <div class="in-header-actions">
+        <a class="btn btn-grey" href="/login">로그인</a>
+        <a class="btn" href="#try">데모 체험하기</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="in-hero">
+    <div class="in-wrap">
+      <div>
+        <span class="in-pill">직원 50인 이하 · 도소매·제조·서비스 · 엑셀 장부 대신</span>
+        <h1>매입·매출·재고·채권<br><em>입력하면 바로, 장부가 끝난다</em></h1>
+        <p class="in-hero-desc">구매 담당이 매입 전표를 넣으면 재고가 늘고, 영업이 매출 전표를 넣으면 미수금이 쌓입니다. 홈택스 세금계산서는 엑셀만 올리면 전표와 맞춰지고, 대표는 아침에 홈 화면만 보면 됩니다.</p>
+        <div class="in-cta">
+          <a class="btn" href="/demo/enter/owner">대표로 둘러보기</a>
+          <a class="btn btn-line" href="#accounts">영업·구매·관리로 둘러보기</a>
+        </div>
+        <p class="in-fine">가입 없이 바로 들어가요. <strong>데이터는 모두 가짜</strong>이고 세금계산서는 실제로 발행되지 않아요.</p>
+      </div>
+
+      <div class="in-mock" aria-label="대표 홈 화면 예시">
+        <div class="in-mock-card">
+          <div class="in-mock-head">● (데모){{ stats.business.name if stats else '바로상사' }} · 이번 달<span class="tag">대표 홈</span></div>
+          <div class="in-mock-body">
+            <div class="in-tile"><p>이번 달 매출</p><strong class="num">{{ (stats.sales if stats else 0) | won }}<small>원</small></strong></div>
+            <div class="in-tile"><p>전체 미수금</p><strong class="num">{{ (stats.receivable if stats else 0) | won }}<small>원</small></strong></div>
+          </div>
+          <div class="in-mock-list">
+            <div><span>승인 대기 지급</span><b class="num">{{ stats.pending if stats else 0 }}건</b></div>
+            <div><span>승인 대기 폐기</span><b class="num">{{ stats.disposals if stats else 0 }}건</b></div>
+            <div><span>30일 넘은 미수 거래처</span><b class="num">{{ stats.overdue if stats else 0 }}곳</b></div>
+          </div>
+        </div>
+        <div class="in-phone" aria-hidden="true">
+          <div class="notch"></div>
+          <h4>지급 승인</h4>
+          <p class="sub">기준금액 이상 · 대표 승인</p>
+          <p class="amount">간편 비밀번호</p>
+          <div class="in-dots"><i></i><i></i><i></i><i></i><i class="off"></i><i class="off"></i></div>
+          <span class="btn">승인하기</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="in-section">
+    <div class="in-wrap">
+      <h2 class="in-h2">이런 고민, 있으셨나요?</h2>
+      <div class="in-pains">
+        <p class="in-pain">매출·매입이 엑셀, 홈택스, 은행 앱, 영수증 사진에 흩어져 있다</p>
+        <p class="in-pain">월말 마감에 며칠씩 걸린다</p>
+        <p class="in-pain">거래처별 미수금을 바로 볼 수 없어 수금을 놓친다</p>
+        <p class="in-pain">같은 거래처 대금을 두 번 보낼 뻔한 적이 있다</p>
+        <p class="in-pain">박스로 사고 낱개로 파는데 재고가 엑셀과 안 맞는다</p>
+        <p class="in-pain">부가세 신고 때마다 세무사에게 자료를 다시 정리해 보낸다</p>
+      </div>
+      <p class="in-flowline">바로ERP는 이 일을 <b>매입 → 재고 → 매출 → 대사 → 수금</b> 한 줄의 흐름으로 정리합니다.</p>
+    </div>
+  </section>
+
+  <section class="in-section alt" id="flow">
+    <div class="in-wrap">
+      <p class="in-eyebrow">HOW IT FLOWS</p>
+      <h2 class="in-h2">입력은 한 번, 장부는 저절로</h2>
+      <p class="in-lead">전표 하나가 재고·채권·분개·세금계산서 대사까지 이어집니다.</p>
+      <div class="in-steps">
+        {% for no, who, color, title, desc in [
+          (1, "구매", "#c98a00", "매입 전표", "박스로 입력, 재고는 병으로 자동 환산"),
+          (2, "자동", "#7c4dff", "재고·미지급금", "이동평균 단가와 분개까지 바로"),
+          (3, "영업", "#03b26c", "매출 전표", "거래명세서 인쇄, 미수금에 반영"),
+          (4, "관리", "#3182f6", "세금계산서 대사", "홈택스 엑셀을 올리면 자동 매칭"),
+          (5, "대표", "#f04452", "승인·확인", "지급 승인과 홈 화면, 할 일만"),
+        ] %}
+        <div class="in-step" style="--c: {{ color }}">
+          <p class="no">STEP {{ no }}</p><p class="who">{{ who }}</p>
+          <h3>{{ title }}</h3><p>{{ desc }}</p>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="in-note">기준금액 이상 지급은 대표가 간편 비밀번호로 승인해야 반영되고, 마감한 달은 수정이 잠깁니다.</p>
+    </div>
+  </section>
+
+  <section class="in-section" id="features">
+    <div class="in-wrap">
+      <p class="in-eyebrow">FEATURES</p>
+      <h2 class="in-h2">작은 회사 장부에 필요한 것만</h2>
+      <p class="in-lead">복잡한 설정 없이, 매일 쓰는 일을 빠르게.</p>
+      <div class="in-features">
+        {% for ic, title, desc in [
+          ("voucher", "매출·매입 전표", "품목을 고르면 기본 단위와 단가가 채워지고, 거래명세서를 바로 인쇄해요."),
+          ("box", "재고·창고 이동", "창고별 현재고와 가용 재고, A창고에서 B창고로 옮기기까지."),
+          ("swap", "거래 단위 환산", "1박스 = 20병처럼 정해 두면 매입은 박스, 매출은 병으로 거래해요."),
+          ("trash", "폐기·손실 분개", "파손·유통기한 폐기를 등록하고 승인하면 손실까지 자동으로 분개해요."),
+          ("clock", "채권·채무 에이징", "결제조건이 지난 금액을 거래처별, 30·60·90일 구간별로 보여 줘요."),
+          ("receipt", "세금계산서 대사", "홈택스에서 내려받은 엑셀을 올리면 전표와 자동으로 맞춰요. 월합계도."),
+          ("users", "거래처 상황판", "거래처 하나의 이번 달 거래, 잔액, 연체, 자주 거래한 품목을 한눈에."),
+          ("shield", "안전장치", "대표 2단계 인증, 월 마감 잠금, 모든 수정 기록, 매일 자동 백업."),
+        ] %}
+        <div class="in-feature">{{ icon(ic) }}<h3>{{ title }}</h3><p>{{ desc }}</p></div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="in-section alt" id="roles">
+    <div class="in-wrap">
+      <p class="in-eyebrow">SCREENS</p>
+      <h2 class="in-h2">역할마다 자기 일만 보입니다</h2>
+      <p class="in-lead">영업은 매출·채권만, 구매는 매입·재고·채무만. 금액 승인과 마감은 대표·관리가 합니다.</p>
+      <div class="in-roles">
+        {% for key, tag, title, items in [
+          ("owner", "대표 · PC/휴대폰", "이번 달 돈의 흐름", ["홈: 매출·매입·이익, 처리 대기", "지급 승인(간편 비밀번호)", "거래처 상황판", "사용자·권한, 백업"]),
+          ("sales", "영업 · PC", "내 거래처 매출", ["매출 전표·거래명세서", "미수금 에이징·거래처 원장", "매출 거래처 상황판", "매입·원가는 보이지 않아요"]),
+          ("purchasing", "구매 · PC/태블릿", "들어오고 나가는 물건", ["매입 전표, 박스 단위 입력", "재고 현황·창고 이동", "파손·유통기한 폐기 등록", "미지급금·매입처 원장"]),
+          ("accountant", "관리 · PC", "돈과 서류 정리", ["수금·지급 등록", "세금계산서 대사", "폐기 승인·월 마감", "보고서·엑셀 내보내기"]),
+        ] %}
+        <div class="in-role">
+          <span class="in-tag {{ key }}">{{ tag }}</span>
+          <h3>{{ title }}</h3>
+          <ul>{% for it in items %}<li>{{ it }}</li>{% endfor %}</ul>
+          <a class="btn btn-weak" href="/demo/enter/{{ key }}">{{ account_names[key] }} 화면 보기</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="in-section" id="try">
+    <div class="in-wrap">
+      <p class="in-eyebrow">TRY IT</p>
+      <h2 class="in-h2">무엇부터 볼까요?</h2>
+      <p class="in-lead">누르면 그 역할의 계정으로 바로 그 화면이 열립니다. 다른 방문자가 바꾼 내용도 함께 보이며, 매일 새벽 4시에 처음 상태로 돌아갑니다.</p>
+      <div class="in-tries">
+        {% for key, title, path, desc in tries %}
+        <div class="in-try">
+          <span class="in-tag {{ key }}">{{ account_names[key] }}</span>
+          <h3>{{ title }}</h3><p>{{ desc }}</p>
+          <a class="btn btn-grey" href="/demo/enter/{{ key }}?next={{ path | urlencode }}">체험하기</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% if stats %}
+      <div class="in-sample">
+        <p><b>세금계산서 대사 체험용 파일</b> · {{ last_month }} 전표에 맞춘 홈택스 엑셀이에요. 관리 계정으로 세금계산서 &gt; 엑셀 올리기에 넣어 보세요.</p>
+        <a class="btn btn-weak btn-sm" href="/intro/hometax-sales.xlsx">매출 세금계산서</a>
+        <a class="btn btn-weak btn-sm" href="/intro/hometax-purchase.xlsx">매입 세금계산서</a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="in-section alt" id="accounts">
+    <div class="in-wrap">
+      <p class="in-eyebrow">DEMO ACCOUNTS</p>
+      <h2 class="in-h2">데모 계정</h2>
+      <p class="in-lead">버튼을 누르면 로그인 없이 들어가요. 로그인 화면에서 직접 입력해도 됩니다.</p>
+      <div class="in-accounts">
+        {% for a in accounts %}
+        <div class="in-account">
+          <div class="who"><span class="in-tag {{ a.key }}">{{ a.role }}</span><strong>{{ a.name }}</strong></div>
+          <p class="login">이메일 <code>{{ a.email }}</code> · 비밀번호 <code>{{ password }}</code>{% if a.key == 'owner' %} · 간편 비밀번호 <code>{{ pin }}</code>{% endif %}</p>
+          <a class="btn btn-sm" href="/demo/enter/{{ a.key }}">바로 들어가기</a>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="in-note">대표는 로그인과 지급·폐기 승인 때 간편 비밀번호(숫자 6자리)를 입력해요. 여러 방문자가 함께 쓰는 계정이라 비밀번호·간편 비밀번호·사용자 권한은 데모에서 바꿀 수 없어요.</p>
+    </div>
+  </section>
+
+  <section class="in-section">
+    <div class="in-wrap">
+      <h2 class="in-h2">우리 회사에 맞을까요?</h2>
+      <div class="in-fit">
+        <div class="good">
+          <h3>잘 맞는 회사</h3>
+          <ul>
+            <li>직원 50인 이하, 경리 1~3명인 도소매·제조·서비스업</li>
+            <li>외상 거래가 많아 거래처별 미수금 관리가 중요한 곳</li>
+            <li>박스·낱개처럼 사고파는 단위가 다른 곳</li>
+            <li>홈택스 전자세금계산서를 쓰는 곳</li>
+          </ul>
+        </div>
+        <div class="bad">
+          <h3>아직 맞지 않을 수 있는 회사</h3>
+          <ul>
+            <li>은행·카드 내역 자동 매칭이 꼭 필요한 곳 (준비 중)</li>
+            <li>급여·인사, 생산 공정(BOM) 관리가 필요한 곳</li>
+            <li>세금계산서를 ERP에서 바로 발행해야 하는 곳</li>
+            <li>여러 법인을 연결해 회계 처리해야 하는 곳</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="in-section alt" id="start">
+    <div class="in-wrap">
+      <p class="in-eyebrow">GET STARTED</p>
+      <h2 class="in-h2">도입은 이렇게 진행됩니다</h2>
+      <p class="in-lead">처음 세팅부터 직원 교육까지 함께합니다. 교육은 1시간이면 충분해요.</p>
+      <div class="in-start">
+        <a href="{{ contact_url }}" target="_blank" rel="noopener"><p class="no">01</p><h3>도입 문의 →</h3><p>업종과 직원 수, 지금 쓰는 장부 방식을 문의 게시판에 남겨 주세요.</p></a>
+        <div><p class="no">02</p><h3>방식 선택</h3><p>바로 쓰는 클라우드, 또는 회사 안에 두는 설치형 중에서 골라요.</p></div>
+        <div><p class="no">03</p><h3>기준정보 등록</h3><p>거래처·품목은 엑셀로 한 번에 옮기고, 거래 단위를 정해요.</p></div>
+        <div><p class="no">04</p><h3>운영 시작</h3><p>역할별 계정을 만들고 1시간 교육 후 바로 전표를 넣어요.</p></div>
+      </div>
+
+      <div class="in-plans">
+        <div class="in-plan main"><h3>바로ERP 클라우드</h3><p class="price">월 이용료</p><p>초기 비용 없이 브라우저로 바로 시작. 서버·백업은 저희가 관리해요.</p></div>
+        <div class="in-plan"><h3>바로ERP 설치형</h3><p class="price">1회 구축비</p><p>회사 PC·서버에 설치. 데이터는 사내에 두고, 매일 자동 백업해요.</p></div>
+        <div class="in-plan"><h3>바로ERP 에이전트</h3><p class="price">추가 옵션</p><p>반복되는 자료 정리를 더 줄이고 싶은 회사를 위한 자동화 옵션이에요.</p></div>
+      </div>
+      <p class="in-note">요금은 사업장 규모에 맞춰 도입 문의 때 안내드려요. 동의 없이 과금하지 않아요.</p>
+    </div>
+  </section>
+
+  <section class="in-section" id="faq">
+    <div class="in-wrap">
+      <h2 class="in-h2">자주 묻는 질문</h2>
+      <div class="in-faq">
+        <details><summary>데모에서 바꾼 내용은 어떻게 되나요?</summary><p>여러 방문자가 같은 데모 회사를 함께 써서, 다른 사람이 넣은 전표도 보여요. 매일 새벽 4시에 처음 상태로 돌아갑니다.</p></details>
+        <details><summary>세금계산서가 실제로 발행되나요?</summary><p>아니요. 바로ERP는 홈택스에서 발행·수취한 세금계산서 목록 엑셀을 올려 전표와 맞춰 보는 방식이에요. 데모의 사업자번호와 거래처는 모두 가짜입니다.</p></details>
+        <details><summary>지금 쓰는 엑셀 자료는 옮길 수 있나요?</summary><p>네. 거래처와 품목은 엑셀 양식으로 한 번에 등록하고, 목록 화면은 모두 엑셀로 내려받을 수 있어요.</p></details>
+        <details><summary>휴대폰에서도 쓸 수 있나요?</summary><p>홈 화면, 영수증(매입) 등록, 지급 승인은 휴대폰 화면에 맞춰져 있어요. 전표 입력이 많은 업무는 PC를 권합니다.</p></details>
+        <details><summary>데이터는 어디에 저장되나요?</summary><p>클라우드는 저희가 운영하는 서버에, 설치형은 회사 PC·서버에 저장됩니다. 거래처 담당자 연락처 같은 개인정보는 암호화해 저장하고, 매일 자동으로 백업해요.</p></details>
+        <details><summary>세무대리인도 같이 쓸 수 있나요?</summary><p>세무대리인 역할로 계정을 만들면 세금계산서와 보고서만 조회할 수 있어요. 마감된 자료를 바로 받아 볼 수 있습니다.</p></details>
+        <details><summary>어떤 기술로 만들었나요?</summary><p>FastAPI와 HTMX로 만든 가벼운 웹 앱이에요. PostgreSQL 또는 SQLite를 쓰고, 1 vCPU·512MB 서버에서도 주요 화면이 1초 안에 열려요.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="in-final">
+    <div class="in-wrap">
+      <h2>우리 회사에 맞는지 직접 눌러 보세요</h2>
+      <p>대표·영업·구매·관리 화면을 가입 없이 둘러보고, 도입이 궁금하면 편하게 물어보세요.</p>
+      <div class="in-cta">
+        <a class="btn" href="/demo/enter/owner">대표로 둘러보기</a>
+        <a class="btn btn-line" href="{{ contact_url }}" target="_blank" rel="noopener">도입 문의</a>
+      </div>
+      <p>도입 문의 · <a class="mail" href="{{ contact_url }}" target="_blank" rel="noopener">문의 게시판</a> · <a class="mail" href="mailto:jw.park363@gmail.com">jw.park363@gmail.com</a></p>
+    </div>
+  </section>
+  <footer class="in-footer">바로ERP(BaroERP) · 입력하면 바로, 장부가 끝난다</footer>
+</div>
+{% endblock %}

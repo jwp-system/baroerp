@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.auth import Forbidden, logout, require_menu
+from app.auth import Forbidden, demo_locked, logout, require_menu
 from app.config import get_settings
 from app.db import engine, get_db
 from app.export import xlsx_response
@@ -158,6 +158,8 @@ def user_update(
     is_active: Annotated[bool, Form()] = False,
     reset_2fa: Annotated[bool, Form()] = False,
 ):
+    if demo_locked(request):
+        return _redirect("/settings/users")
     target = _own_user(db, request, user_id)
     if target is None:
         flash(request, "사용자를 찾을 수 없어요", "error")
@@ -195,6 +197,8 @@ def permissions(request: Request, _user: Admin):
 
 @router.post("/permissions")
 async def permissions_update(request: Request, db: DB, _user: Admin):
+    if demo_locked(request):
+        return _redirect("/settings/permissions")
     form = await request.form()
     overrides = {
         role.value: [m for m in MENU_KEYS if form.get(f"{role.value}:{m}")]
@@ -208,6 +212,8 @@ async def permissions_update(request: Request, db: DB, _user: Admin):
 
 @router.post("/permissions/reset")
 def permissions_reset(request: Request, db: DB, _user: Admin):
+    if demo_locked(request):
+        return _redirect("/settings/permissions")
     request.state.business.menu_permissions = None
     db.commit()
     flash(request, "기본 권한으로 되돌렸어요")
@@ -351,6 +357,8 @@ async def backup_restore(
     file: Annotated[UploadFile | None, File()] = None,
 ):
     _owner_only(user)
+    if demo_locked(request):
+        return _redirect("/settings/backup")
     if not verify_password(password, user.password_hash):
         flash(request, "비밀번호가 맞지 않아요", "error")
         return _redirect("/settings/backup")

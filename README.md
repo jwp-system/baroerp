@@ -42,15 +42,32 @@ PROJECT_ID=my-project ./deploy/gcp/reset-pin.sh owner@example.kr               #
 - 복원 조건: **같은 앱 버전(DB 마이그레이션)과 같은 `DATA_KEY`**. 복원 직전 상태는 `…-before-restore.zip`으로 자동 보관됩니다.
 - 설치형은 `data/backups`를 외장 디스크·NAS로 복사해 두세요.
 
-## 데모 준비
+## 데모 사이트
+
+`DEMO_MODE=true`로 실행하면 데모 사이트가 됩니다.
+
+- 첫 화면(`/`)은 제품 소개 `/intro`. 역할별 '둘러보기'·'체험하기'를 누르면 로그인 없이 그 계정으로 들어가요(`/demo/enter/<owner|sales|purchasing|accountant>?next=경로`).
+- 앱 화면 위에 데모 안내 줄(지금 역할, 대표 간편 비밀번호, 다른 역할로 바꾸기)이 보이고, 로그인 화면에도 '바로 들어가기'가 있어요.
+- 공용 계정이라 비밀번호·간편 비밀번호 변경, 사용자 수정, 메뉴 권한, 백업 복원은 막아 둡니다.
+- 데이터는 매일 새벽 4시에 처음 상태로 돌아가요(설치형은 내장 스케줄러, Cloud Run은 Cloud Scheduler → `/tasks/demo-reset`).
+
+| 역할 | 이름 | 이메일 | 비밀번호 | 간편 비밀번호 |
+| --- | --- | --- | --- | --- |
+| 대표 | 박사장 | demo1@example.com | 12345678 | 142536 |
+| 영업 | 김과장 | demo2@example.com | 12345678 | |
+| 구매·자재 | 장대리 | demo3@example.com | 12345678 | |
+| 경리·회계(관리) | 강부장 | demo4@example.com | 12345678 | |
 
 ```bash
+uv run python -m app.demo seed                   # 빈 DB에 데모 사업장·계정·3개월 거래 이력
+uv run python -m app.demo reset                  # 모든 데이터를 지우고 처음 상태로
 uv run python -m app.demo files data/demo        # 시연용 엑셀(거래처·품목·홈택스 세금계산서)
-uv run python -m app.demo seed --email owner@demo.kr --password '********'   # 빈 DB에 3개월 거래 이력
 uv run python scripts/perf_check.py              # 주요 화면 응답 시간·메모리 확인
 ```
 
-시연 순서와 금액은 [baroerp.md](baroerp.md) 9-1장 데모 시나리오·S5 구현 기준을 따릅니다.
+체험용으로 대표 승인을 기다리는 지급·폐기를 하나씩 남겨 두고, 소개 페이지에서 지난달 전표에 맞춘
+홈택스 세금계산서 엑셀(`/intro/hometax-sales.xlsx`)을 내려받아 대사를 바로 해 볼 수 있어요.
+처음부터 따라 하는 시연(빈 DB → 초기 설정)은 [baroerp.md](baroerp.md) 9-1장 데모 시나리오를 따릅니다.
 세금계산서 파일은 만든 날짜로 작성일자가 들어가므로 시연 당일에 만드세요(`--date`로 지정 가능).
 
 ## GCP 데모 배포
@@ -95,7 +112,7 @@ src/app/
   export.py        목록 엑셀 내보내기 공통
   listing.py       목록 페이지 나누기·HTMX 부분 응답
   services/        업무 규칙(기준정보, 전표·재고·폐기·실사, 수금·지급·채권채무, 거래처 상황판, 세금계산서 대사, 분개, 저장소, 백업·복원)
-  demo.py          데모 시연 파일·거래 이력 생성
+  demo.py          데모 계정·거래 이력 생성, 처음 상태로 초기화, 시연 파일
   manage.py        서버 관리 명령(간편 비밀번호 초기화)
   timeutil.py      UTC 저장 ↔ KST 표시
   scheduler.py     내장 예약 작업(Cloud Run에서는 비활성)

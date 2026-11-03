@@ -164,6 +164,8 @@ def change_password(
     current: Annotated[str, Form()],
     new: Annotated[str, Form()],
 ):
+    if auth.demo_locked(request):
+        return _redirect("/account")
     if auth.authenticate(db, user.email, current) is None:
         flash(request, "현재 비밀번호가 맞지 않아요", "error")
     elif len(new) < MIN_PASSWORD:
@@ -199,6 +201,8 @@ def pin_setup(
     current: Annotated[str, Form()] = "",
 ):
     changing = bool(user.pin_hash)
+    if changing and auth.demo_locked(request):
+        return _redirect("/account")
     # 바꿀 때는 지금 간편 비밀번호부터 확인(로그인된 화면을 잠시 비운 사이 바꾸는 것 방지)
     error = auth.check_pin(db, user, current) if changing else None
     if error is None:

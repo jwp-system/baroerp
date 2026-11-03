@@ -18,6 +18,16 @@ def _daily_backup() -> None:
         log.exception("자동 백업 실패")
 
 
+def _demo_reset() -> None:
+    from app import demo
+
+    try:
+        demo.reset()
+        log.info("데모 데이터를 처음 상태로 되돌렸어요")
+    except Exception:
+        log.exception("데모 초기화 실패")
+
+
 def start_scheduler() -> None:
     """내장 예약 작업(설치형). 데모(Cloud Run)는 끄고 Cloud Scheduler가 /tasks를 호출한다."""
     global _scheduler
@@ -26,6 +36,8 @@ def start_scheduler() -> None:
     _scheduler = BackgroundScheduler(timezone="Asia/Seoul")
     if not get_settings().is_saas:  # SaaS는 운영사 DB 백업을 쓴다
         _scheduler.add_job(_daily_backup, "cron", hour=3, minute=0, id="daily_backup")
+    if get_settings().demo_mode:  # 데모는 매일 새벽 4시에 처음 상태로
+        _scheduler.add_job(_demo_reset, "cron", hour=4, minute=0, id="demo_reset")
     _scheduler.start()
 
 

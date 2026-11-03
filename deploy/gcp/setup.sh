@@ -119,16 +119,24 @@ gc run deploy "$SERVICE" --image="$IMAGE" --region="$REGION" \
   --set-secrets="DATABASE_URL=baroerp-database-url:latest,SECRET_KEY=baroerp-secret-key:latest,DATA_KEY=baroerp-data-key:latest,TASK_TOKEN=baroerp-task-token:latest"
 URL=$(gc run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')
 
-echo "▶ Cloud Scheduler: 매일 03:00 KST 앱 백업(/tasks/backup)"
 TOKEN=$(gc secrets versions access latest --secret=baroerp-task-token)
-JOB_ARGS=(--location="$REGION" --schedule="0 3 * * *" --time-zone="Asia/Seoul"
-  --uri="$URL/tasks/backup" --http-method=POST --headers="Authorization=Bearer $TOKEN"
-  --attempt-deadline=300s)
-if exists gc scheduler jobs describe baroerp-backup --location="$REGION"; then
-  gc scheduler jobs update http baroerp-backup "${JOB_ARGS[@]}"
-else
-  gc scheduler jobs create http baroerp-backup "${JOB_ARGS[@]}"
-fi
+schedule() {  # 이름, cron(KST), 경로
+  local args=(--location="$REGION" --schedule="$2" --time-zone="Asia/Seoul"
+    --uri="$URL$3" --http-method=POST --headers="Authorization=Bearer $TOKEN"
+    --attempt-deadline=300s)
+  if exists gc scheduler jobs describe "$1" --location="$REGION"; then
+    gc scheduler jobs update http "$1" "${args[@]}"
+  else
+    gc scheduler jobs create http "$1" "${args[@]}"
+  fi
+}
+echo "▶ Cloud Scheduler: 매일 03:00 KST 앱 백업, 04:00 KST 데모 데이터 처음 상태로"
+schedule baroerp-backup "0 3 * * *" /tasks/backup
+schedule baroerp-demo-reset "0 4 * * *" /tasks/demo-reset
+
+echo "▶ 데모 데이터 채우기(데모 계정·3개월 거래 이력)"
+curl -fsS -m 300 -X POST -H "Authorization: Bearer $TOKEN" "$URL/tasks/demo-reset"
+echo
 
 # Cloud Build 서비스 계정이 Cloud Run을 배포할 수 있게(cloudbuild.yaml의 run deploy)
 PROJECT_NUMBER=$(gc projects describe "$PROJECT_ID" --format='value(projectNumber)')
@@ -141,7 +149,9 @@ gc iam service-accounts add-iam-policy-binding "$RUN_SA" --member="serviceAccoun
 cat <<DONE
 
 ✔ 데모 환경을 만들었어요: $URL
-  - 처음 접속하면 사업장·관리자 초기 설정 화면이 나와요(시나리오 1번)
+  - 첫 화면은 제품 소개(/intro)예요. 대표·영업·구매·관리 계정으로 로그인 없이 둘러볼 수 있어요
+  - 데모 계정: demo1~4@example.com · 비밀번호 12345678 · 대표 간편 비밀번호 142536
+  - 데이터는 매일 새벽 4시에 처음 상태로 돌아가요(이 스크립트를 다시 실행해도 처음 상태로)
   - 시연 파일: uv run python -m app.demo files
   - main 브랜치 푸시 자동 배포: 콘솔 Cloud Build > 트리거에서 저장소를 연결하고
     구성 파일로 cloudbuild.yaml을 지정하세요(저장소 연결은 GitHub 인증이 필요해 스크립트로 하지 않아요)

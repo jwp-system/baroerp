@@ -23,3 +23,14 @@ def _check(authorization: str | None) -> None:
 def backup_task(authorization: str | None = Header(default=None)) -> dict:
     _check(authorization)
     return {"backup": backup.run_scheduled(engine)}
+
+
+@router.post("/demo-reset")
+def demo_reset_task(authorization: str | None = Header(default=None)) -> dict:
+    """데모 사이트를 처음 상태로(매일 새벽 4시). 데모 모드가 아니면 없는 주소처럼 동작한다."""
+    _check(authorization)
+    if not get_settings().demo_mode:
+        raise HTTPException(status_code=404)
+    from app import demo
+
+    return {"business": demo.reset().name}

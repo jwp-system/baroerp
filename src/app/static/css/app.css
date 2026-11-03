@@ -407,3 +407,12 @@ button.link { background: none; border: 0; padding: 0; font: inherit; font-weigh
   }
   .vl-row > .combo { grid-column: 1 / -1; }
 }
+
+/* ---------- 데모 사이트 ---------- */
+.demo-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; padding: 10px 14px; border-radius: var(--radius-m); background: var(--primary-weak); font-size: 13px; }
+.demo-who { color: var(--text-sub); }
+.demo-switch { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-left: auto; }
+.demo-switch a { color: var(--primary); font-weight: 600; }
+.demo-enter { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+.demo-enter .hint { width: 100%; text-align: center; }
+.demo-enter .link-sub { width: 100%; text-align: center; }

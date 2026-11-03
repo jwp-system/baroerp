@@ -17,4 +17,13 @@
   </div>
   <button class="btn btn-lg btn-block">로그인</button>
 </form>
+{% if settings.demo_mode %}
+<div class="demo-enter">
+  <p class="hint">데모 계정으로 바로 들어가기 · 비밀번호 {{ demo_password }}</p>
+  {% for key, name, role in demo_accounts %}
+  <a class="btn btn-grey btn-sm" href="/demo/enter/{{ key }}">{{ role }} {{ name }}</a>
+  {% endfor %}
+  <a href="/intro" class="link-sub">제품 소개 보기</a>
+</div>
+{% endif %}
 {% endblock %}

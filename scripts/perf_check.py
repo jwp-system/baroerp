@@ -34,8 +34,7 @@ from sqlalchemy import select  # noqa: E402
 from app import demo  # noqa: E402
 from app.db import SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Base, Partner, User, Voucher  # noqa: E402
-from app.security import hash_password  # noqa: E402
+from app.models import Base, Partner, Voucher  # noqa: E402
 
 PAGES = ["/", "/sales", "/purchase", "/inventory", "/inventory/moves", "/receivables",
          "/payables", "/funds", "/tax-invoice/list", "/reports", "/master/items",
@@ -44,21 +43,22 @@ PAGES = ["/", "/sales", "/purchase", "/inventory", "/inventory/moves", "/receiva
 Base.metadata.create_all(engine)
 t0 = time.perf_counter()
 with SessionLocal() as db:
-    demo.seed(db, "owner@demo.kr", "perf-pass-1234", args.months)
-    db.scalar(select(User)).pin_hash = hash_password("802461")
-    db.commit()
+    demo.seed(db, args.months)
     vouchers = len(db.scalars(select(Voucher.id)).all())
     partner_id = db.scalar(select(Partner.id))
     sale_id = db.scalar(select(Voucher.id).where(Voucher.kind == "sales"))
 print(f"데모 이력 {args.months}개월: 전표 {vouchers}건 ({time.perf_counter() - t0:.1f}초)")
-PAGES += [f"/sales/{sale_id}", f"/sales/{sale_id}/print", f"/receivables/{partner_id}"]
+PAGES += [f"/sales/{sale_id}", f"/sales/{sale_id}/print", f"/receivables/{partner_id}",
+          f"/partners/{partner_id}"]  # fmt: skip
+PAGES.insert(PAGES.index("/tax-invoice/list"), "/partners")
+owner_email = demo.DEMO_ACCOUNTS["owner"][1]
 
 with TestClient(app, follow_redirects=False) as c:
     token = c.get("/login").text.split('name="csrf_token" value="')[1].split('"')[0]
-    c.post("/login", data={"email": "owner@demo.kr", "password": "perf-pass-1234",
+    c.post("/login", data={"email": owner_email, "password": demo.DEMO_PASSWORD,
                            "csrf_token": token})  # fmt: skip
     token = c.get("/login/pin").text.split('name="csrf_token" value="')[1].split('"')[0]
-    c.post("/login/pin", data={"pin": "802461", "csrf_token": token})
+    c.post("/login/pin", data={"pin": demo.DEMO_PIN, "csrf_token": token})
 
     slow = []
     print(f"{'화면':<28}{'중앙값':>10}{'최대':>10}")
