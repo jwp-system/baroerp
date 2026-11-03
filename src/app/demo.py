@@ -6,6 +6,9 @@
         빈 DB에 데모 사업장 + 데모 계정(DEMO_ACCOUNTS) + 최근 3개월 거래 이력
     uv run python -m app.demo reset
         모든 데이터를 지우고 처음 상태로 다시 채움(데모 사이트는 매일 새벽 4시 자동)
+    python -m app.demo ensure
+        컨테이너 기동 시: DEMO_MODE이고 DB가 비어 있으면 seed, 아니면 아무것도 하지 않음
+        (GCP 데모는 컨테이너 안 SQLite라 인스턴스가 새로 뜰 때마다 처음 상태로 채운다)
 
 시연 금액은 SCENARIO에 고정해 두고, 세금계산서 파일이 그 금액·사업자번호와 맞도록 만든다.
 """
@@ -324,6 +327,19 @@ def reset(months: int = 3) -> Business:
         return seed(db, months)
 
 
+def ensure(months: int = 3) -> Business | None:
+    """데모 모드에서 빈 DB면 채운다. 이미 사업장이 있거나 데모가 아니면 None."""
+    from app.config import get_settings
+    from app.db import SessionLocal
+
+    if not get_settings().demo_mode:
+        return None
+    with SessionLocal() as db:
+        if db.scalar(select(Business.id).limit(1)) is not None:
+            return None
+        return seed(db, months)
+
+
 def _settle(
     db: Session, business: Business, accountant: User, owner: User, d: date, rnd: random.Random
 ) -> None:
@@ -349,7 +365,8 @@ def main(argv: list[str] | None = None) -> None:
     f.add_argument("folder", nargs="?", default="data/demo")
     f.add_argument("--date", type=date.fromisoformat, help="세금계산서 작성일자(기본 오늘)")
     for name, help_text in (("seed", "빈 DB에 데모 사업장·계정·거래 이력 채우기"),
-                            ("reset", "모든 데이터를 지우고 처음 상태로 다시 채우기")):  # fmt: skip
+                            ("reset", "모든 데이터를 지우고 처음 상태로 다시 채우기"),
+                            ("ensure", "데모 모드에서 빈 DB면 채우기(기동 시)")):  # fmt: skip
         sub.add_parser(name, help=help_text).add_argument("--months", type=int, default=3)
     args = parser.parse_args(argv)
 
@@ -359,6 +376,9 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.cmd == "reset":
         business = reset(args.months)
+    elif args.cmd == "ensure":
+        if (business := ensure(args.months)) is None:
+            return
     else:
         from app.db import SessionLocal
 

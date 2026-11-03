@@ -17,5 +17,5 @@ COPY migrations ./migrations
 COPY src ./src
 RUN uv sync --frozen --no-dev
 
-# Cloud Run은 PORT 환경 변수를 넘겨준다. 기동 시 DB 변경을 자동 적용
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
+# Cloud Run은 PORT 환경 변수를 넘겨준다. 기동 시 DB 변경을 자동 적용하고, 데모 모드면 빈 DB를 채운다
+CMD ["sh", "-c", "alembic upgrade head && python -m app.demo ensure && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

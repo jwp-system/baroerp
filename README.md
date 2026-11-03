@@ -5,7 +5,7 @@
 
 ## 기술 스택
 
-FastAPI(Python 3.12) + Jinja2 + HTMX · SQLAlchemy 2.0 + Alembic · SQLite(설치형) / PostgreSQL(SaaS·데모) · APScheduler
+FastAPI(Python 3.12) + Jinja2 + HTMX · SQLAlchemy 2.0 + Alembic · SQLite(설치형·데모) / PostgreSQL(SaaS) · APScheduler
 
 ## 시작하기
 
@@ -32,7 +32,6 @@ uv run baroerp            # http://localhost:8000 (자동 리로드)
 ```bash
 uv run python -m app.manage reset-pin --email owner@example.kr                  # 설치형(직접 실행)
 docker compose exec app python -m app.manage reset-pin --email owner@example.kr # 설치형(Docker)
-PROJECT_ID=my-project ./deploy/gcp/reset-pin.sh owner@example.kr               # GCP 데모(Cloud Run 작업)
 ```
 
 ## 백업·복원
@@ -50,6 +49,7 @@ PROJECT_ID=my-project ./deploy/gcp/reset-pin.sh owner@example.kr               #
 - 앱 화면 위에 데모 안내 줄(지금 역할, 대표 간편 비밀번호, 다른 역할로 바꾸기)이 보이고, 로그인 화면에도 '바로 들어가기'가 있어요.
 - 공용 계정이라 비밀번호·간편 비밀번호 변경, 사용자 수정, 메뉴 권한, 백업 복원은 막아 둡니다.
 - 데이터는 매일 새벽 4시에 처음 상태로 돌아가요(설치형은 내장 스케줄러, Cloud Run은 Cloud Scheduler → `/tasks/demo-reset`).
+- 컨테이너는 기동 시 `python -m app.demo ensure`를 실행해, `DEMO_MODE=true`이고 DB가 비어 있으면 위 계정과 거래 이력을 채워요(설치형에서는 아무것도 하지 않음).
 
 | 역할 | 이름 | 이메일 | 비밀번호 | 간편 비밀번호 |
 | --- | --- | --- | --- | --- |
@@ -77,8 +77,13 @@ PROJECT_ID=my-project ./deploy/gcp/setup.sh       # 최초 1회: 인프라 전�
 gcloud builds submit --config cloudbuild.yaml      # 이후 배포
 ```
 
-Cloud Run(앱) + e2-micro VM(PostgreSQL 16, 외부 IP 없음) + Cloud Storage(첨부·백업·DB 덤프) +
-Secret Manager + Cloud Scheduler(매일 백업). 스크립트는 다시 실행해도 같은 결과가 되도록 작성했습니다.
+Cloud Run(앱 + 컨테이너 안 SQLite, 최대 인스턴스 1) + Cloud Storage(첨부·백업) + Secret Manager +
+Cloud Scheduler(매일 04:00 `/tasks/demo-reset`). 스크립트는 다시 실행해도 같은 결과가 되도록 작성했습니다.
+
+- DB는 컨테이너 메모리에 있어 인스턴스가 새로 뜰 때(한동안 요청이 없어 꺼진 뒤, 새 배포) 데모 데이터로 처음 상태가 됩니다.
+  첫 기동 때 데모 계정·3개월 거래 이력이 자동으로 채워지므로 따로 seed할 필요가 없습니다.
+- 시연 중에 초기화되지 않게 하려면 시연 시간에만 `--min-instances=1`로 올려 두세요(끝나면 0).
+- 바로 처음 상태로: `curl -X POST -H "Authorization: Bearer <baroerp-task-token>" <URL>/tasks/demo-reset`
 결제 예산 알림(월 1만 원)과 main 브랜치 자동 배포 트리거는 콘솔에서 설정합니다.
 
 ## 배포 형태

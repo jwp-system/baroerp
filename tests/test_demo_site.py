@@ -102,3 +102,13 @@ def test_reset_restores_first_state(client, db, demo_site, monkeypatch):
     assert db.scalar(select(func.count()).select_from(Business)) == 1
     assert db.scalar(select(User).where(User.email == "demo2@example.com")).is_active
     assert client.get("/demo/enter/sales").headers["location"] == "/"
+
+
+def test_ensure_seeds_only_empty_demo_db(db, monkeypatch):
+    assert demo.ensure() is None  # 데모 모드가 아니면(설치형) 아무것도 하지 않는다
+    assert db.scalar(select(func.count()).select_from(Business)) == 0
+    monkeypatch.setattr(get_settings(), "demo_mode", True)
+    assert demo.ensure(months=1).name == demo.BUSINESS["name"]
+    assert db.scalar(select(func.count()).select_from(User)) == len(demo.DEMO_ACCOUNTS)
+    assert demo.ensure() is None  # 이미 채워져 있으면 그대로
+    assert db.scalar(select(func.count()).select_from(Business)) == 1
